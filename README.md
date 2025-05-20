@@ -16,8 +16,7 @@ The NG-SIEM Importer sample Foundry app automates the collection, processing, an
 ## Prerequisites
 
 * The Foundry CLI (instructions below).
-* Go v1.23+ (needed if modifying the app's functions). See https://go.dev/learn for installation instructions.
-* Yarn (needed if modifying the app's UI). See https://yarnpkg.com/getting-started for installation instructions.
+* Python 3.9+ (needed if modifying the app's functions). See [Python For Beginners](https://www.python.org/about/gettingstarted/) for installation instructions.
 
 ### Install the Foundry CLI
 
@@ -124,7 +123,7 @@ The extension downloads threat intelligence from multiple public sources:
 
 - Built on CrowdStrike's Foundry Function framework
 - Written in Python with dependencies including:
-  - crowdstrike-foundry-function and FalconPy for CrowdStrike API integration
+  - [crowdstrike-foundry-function](https://github.com/CrowdStrike/foundry-fn-python) and [FalconPy](https://falconpy.io/) for CrowdStrike API integration
   - pandas for data processing
   - requests for HTTP communication
   - ipaddress for IP validation
