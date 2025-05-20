@@ -15,6 +15,22 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         working-directory: functions/ti-import-to-ng-siem
-      - name: Run Python functions
-        run: python main.py
+      - name: Run Python functions and verify output
+        run: |
+          python main.py > output.log 2>&1 &
+          PID=$!
+          # Wait for output to appear (with timeout)
+          timeout=30
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if grep -q "running at port 8081" output.log; then
+              echo "✅ Application started successfully"
+              exit 0
+            fi
+            sleep 1
+            elapsed=$((elapsed+1))
+          done
+          echo "❌ Application failed to start within $timeout seconds"
+          cat output.log
+          exit 1
         working-directory: functions/ti-import-to-ng-siem
