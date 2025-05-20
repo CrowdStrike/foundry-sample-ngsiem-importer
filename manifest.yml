@@ -1,6 +1,6 @@
 name: Threat Intel Import to NG-SIEM
 description: Automatically downloads, processes, and uploads CSV files to Next-Gen SIEM
-logo: images/cs_logo.png
+Updalogo: images/falcon-logo.png
 vendor: CrowdStrike
 vendor_products:
   - Next-Gen SIEM
