@@ -1,0 +1,55 @@
+name: Threat Intel Import to NG-SIEM
+description: Automatically downloads, processes, and uploads CSV files to Next-Gen SIEM
+logo: images/cs_logo.png
+vendor: CrowdStrike
+vendor_products:
+  - Next-Gen SIEM
+use_case: ""
+manifest_version: "2023-05-09"
+ignored:
+  - .+/node_modules$
+  - .+/node_modules/.+
+  - .+/venv$
+  - .+/venv/.+
+ui:
+  homepage: ""
+  extensions: []
+  pages: {}
+  dashboards: {}
+  navigation: {}
+api_integrations: []
+rtr_scripts: []
+collections: []
+auth:
+  scopes:
+    - humio-auth-proxy:write
+  permissions: {}
+  roles: []
+functions:
+  - name: ti-import-to-ng-siem
+    config: null
+    description: Downloads, processes, and uploads CSV files to Next-Gen SIEM
+    path: functions/ti-import-to-ng-siem
+    environment_variables: {}
+    handlers:
+      - name: ti-import-bulk
+        description: Downloads, processes, and uploads CSV files to Next-Gen SIEM
+        method: POST
+        api_path: /ti-import-bulk
+        request_schema: schemas/request_schema.json
+        response_schema: schemas/response_schema.json
+        workflow_integration:
+          disruptive: false
+          system_action: true
+          tags:
+            - Threat Intel Import to NG-SIEM
+        permissions: []
+    language: python
+workflows:
+  - name: TI Import Scheduler
+    path: workflows/TI_Import_Scheduler.yml
+parsers: []
+logscale:
+  saved_searches: []
+lookup_files: []
+docs: {}

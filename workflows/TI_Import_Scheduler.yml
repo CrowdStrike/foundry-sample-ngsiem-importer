@@ -1,0 +1,30 @@
+name: TI Import Scheduler
+description: 'Imports threat intel to Next-Gen SIEM on a regular interval. '
+parameters:
+    actions:
+        configuration:
+            ti_import_bulk_0d652ec1:
+                properties:
+                    repository:
+                        required: false
+                        default_value: search-all
+provision_on_install: true
+trigger:
+    next:
+        - ti_import_bulk_0d652ec1
+    event: Schedule
+    schedule:
+        time_cycle: 0 3 */1 * *
+        start_date: ""
+        end_date: ""
+        tz: America/New_York
+        skip_concurrent: false
+actions:
+    ti_import_bulk_0d652ec1:
+        id: functions.ti-import-to-ng-siem.ti-import-bulk
+        properties: {}
+output_fields:
+    - ti_import_bulk_0d652ec1.FaaS.ti-import-to-ng-siem.ti-import-bulk.results
+summary: |-
+    Results:
+    ${ti_import_bulk_0d652ec1.FaaS.ti-import-to-ng-siem.ti-import-bulk.results}
