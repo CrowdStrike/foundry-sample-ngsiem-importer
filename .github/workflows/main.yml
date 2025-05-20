@@ -14,7 +14,7 @@ jobs:
           cache: 'pip'
       - name: Install Python dependencies
         run: pip install -r requirements.txt
-        working-dir: functions/ti-import-to-ng-siem
+        working-directory: functions/ti-import-to-ng-siem
       - name: Run Python functions
         run: python main.py
-        working-dir: functions/ti-import-to-ng-siem
+        working-directory: functions/ti-import-to-ng-siem
