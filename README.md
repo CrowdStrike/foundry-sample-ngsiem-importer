@@ -63,8 +63,8 @@ Select the following permissions:
 
 - [ ] Create and run RTR scripts
 - [x] Create, execute and test workflow templates
-- [x] Create, run and view API integrations
-- [x] Create, edit, delete, and list queries
+- [ ] Create, run and view API integrations
+- [ ] Create, edit, delete, and list queries
 
 Deploy the app:
 
@@ -81,10 +81,7 @@ Once the deployment has finished, you can release the app:
 foundry apps release
 ```
 
-Next, go to **Foundry** > **App catalog**, find your app, and install it. Select the **Open App** button in the success dialog.
-
-> [!TIP]
-> If the app doesn't load, reload the page.
+Next, go to **Foundry** > **App catalog**, find your app, and install it. Go to **Fusion SOAR** > **Workflows** to see the scheduled workflow from this app.
 
 ## About this sample app
 
