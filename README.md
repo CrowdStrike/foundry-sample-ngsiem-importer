@@ -7,7 +7,7 @@ The NG-SIEM Importer sample Foundry app is a community-driven, open source proje
 This app is one of several App Templates included in Foundry that you can use to jumpstart your development. It comes complete with a set of preconfigured capabilities aligned to its business purpose. Deploy this app from the Templates page with a single click in the Foundry UI, or create an app from this template using the CLI.
 
 > [!IMPORTANT]  
-> To deploy this sample app, you need access to the Falcon console.
+> To view documentation and deploy this sample app, you need access to the Falcon console.
 
 ## Description
 
