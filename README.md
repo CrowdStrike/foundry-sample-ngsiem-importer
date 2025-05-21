@@ -61,10 +61,10 @@ foundry login
 
 Select the following permissions:
 
-- [ ] Run RTR Scripts
-- [x] Run, execute, and test Workflows
-- [x] Run, execute, and test API integrations
-- [x] Run, execute, and test LogScale queries
+- [ ] Create and run RTR scripts
+- [x] Create, execute and test workflow templates
+- [x] Create, run and view API integrations
+- [x] Create, edit, delete, and list queries
 
 Deploy the app:
 
