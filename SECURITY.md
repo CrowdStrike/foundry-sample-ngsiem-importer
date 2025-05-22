@@ -1,4 +1,4 @@
-![CrowdStrike Falcon](/docs/asset/cs-logo.png?raw=true)
+![CrowdStrike Falcon](/images/cs-logo.png?raw=true)
 
 # Security Policy
 
@@ -20,5 +20,5 @@ Please report suspected security vulnerabilities by:
 
 ---
 
-<p align="center"><img src="https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/cs-logo-footer.png"><BR/><img width="300px" src="https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/adversary-goblin-panda.png"></p>
+<p align="center"><img src="/images/cs-logo-footer.png"><br/><img width="300px" src="/images/adversary-goblin-panda.png"></p>
 <h3><p align="center">WE STOP BREACHES</p></h3>
