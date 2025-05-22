@@ -1,7 +1,6 @@
 from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import NGSIEM
 import requests
-import pandas as pd
 import tempfile
 import os
 import ipaddress
@@ -90,13 +89,16 @@ def process_file(file_info, temp_dir):
                     else:
                         output_rows.append([line.strip()])
 
-        # Create DataFrame
-        df = pd.DataFrame(output_rows, columns=file_info["headers"])
-
-        # Save to CSV
+        # Save to CSV directly
         output_filename = f"ti_{file_info['name']}.csv"
         output_path = os.path.join(temp_dir, output_filename)
-        df.to_csv(output_path, index=False, quoting=csv.QUOTE_MINIMAL)
+
+        with open(output_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            # Write headers
+            writer.writerow(file_info["headers"])
+            # Write data rows
+            writer.writerows(output_rows)
 
         return output_path
     except Exception as e:
@@ -152,4 +154,3 @@ def next_gen_siem_csv_import(request: Request, config) -> Response:
 
 if __name__ == '__main__':
     func.run()
-
