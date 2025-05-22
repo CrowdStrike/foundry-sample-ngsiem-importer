@@ -50,5 +50,5 @@ _MCVE format_ is designed to reduce the potential for encountering confidentiali
 ---
 
 
-<p align="center"><img src="https://raw.githubusercontent.com/CrowdStrike/foundry-sample-ngsiem-importer/main/images/cs-logo-footer.png"><br/><img width="300px" src="https://raw.githubusercontent.com/CrowdStrike/foundry-sample-ngsiem-importer/images/adversary-bear.png"></p>
+<p align="center"><img src="/images/cs-logo-footer.png"><br/><img width="300px" src="/images/adversary-bear.png"></p>
 <h3><p align="center">WE STOP BREACHES</p></h3>
