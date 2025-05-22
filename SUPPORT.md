@@ -1,4 +1,4 @@
-![CrowdStrike Falcon](/docs/asset/cs-logo.png?raw=true)
+![CrowdStrike Falcon](/images/cs-logo.png?raw=true)
 
 # Repository Support
 
@@ -29,7 +29,7 @@ MCVE formatted code examples provided within issues or questions should be:
 
 > To read more about _MCVE format_, review this post on [Stack Overflow](https://stackoverflow.com/help/minimal-reproducible-example). For tips on how to properly format questions, check out the blog post by [@mrocklin](https://github.com/mrocklin/) on [crafting minimal bug reports](https://matthewrocklin.com/minimal-bug-reports).
 
-[![Report Issue](https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/report-issue.png)](https://github.com/CrowdStrike/foundry-sample-ngsiem-importer/issues/new/choose)
+### [Report an Issue →](https://github.com/CrowdStrike/foundry-sample-ngsiem-importer/issues/new/choose)
 
 ### Support Escalation
 
@@ -50,5 +50,5 @@ _MCVE format_ is designed to reduce the potential for encountering confidentiali
 ---
 
 
-<p align="center"><img src="https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/cs-logo-footer.png"><BR/><img width="300px" src="https://raw.githubusercontent.com/CrowdStrike/falconpy/main/docs/asset/adversary-bear-1.png"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/CrowdStrike/foundry-sample-ngsiem-importer/main/images/cs-logo-footer.png"><br/><img width="300px" src="https://raw.githubusercontent.com/CrowdStrike/foundry-sample-ngsiem-importer/images/adversary-bear.png"></p>
 <h3><p align="center">WE STOP BREACHES</p></h3>
