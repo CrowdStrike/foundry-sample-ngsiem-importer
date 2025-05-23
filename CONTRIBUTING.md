@@ -1,4 +1,15 @@
-# Contributing
+![CrowdStrike Falcon](/images/cs-logo.png?raw=true)
+
+[![CrowdStrike Subreddit](https://img.shields.io/badge/-r%2Fcrowdstrike-white?logo=reddit&labelColor=gray&link=https%3A%2F%2Freddit.com%2Fr%2Fcrowdstrike)](https://reddit.com/r/crowdstrike)
+
+# Contributing to this repository
+
+![Hollywood Adversaries](/images/hollywood-adversaries.jpg?raw=true)
+
+Please review this document for details regarding getting started with your first contribution, packages you'll need to install as a developer, and our Pull Request process. If you have any questions, please let us know by posting your question as an [issue](https://github.com/CrowdStrike/foundry-sample-ngsiem-importer/issues).
+
+> **Before you begin**: Have you read the [Code of Conduct](CODE_OF_CONDUCT.md)?
+> The Code of Conduct helps us establish community norms and how they'll be enforced.
 
 ## Issues
 
@@ -57,3 +68,8 @@ The aim of this repository is:
 
 This repository has a [code of conduct](CODE_OF_CONDUCT.md), we will
 remove things that do not respect it.
+
+---
+
+<p align="center"><img src="/images/cs-logo-footer.png"><br/><img width="300px" src="/images/turbine-panda.png"></p>
+<h3><p align="center">WE STOP BREACHES</p></h3>
