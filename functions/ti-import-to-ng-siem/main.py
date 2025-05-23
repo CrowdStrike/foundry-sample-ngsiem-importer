@@ -1,6 +1,7 @@
 from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import NGSIEM
 import requests
+import pandas as pd
 import tempfile
 import os
 import ipaddress
@@ -58,7 +59,7 @@ def is_valid_ipv4(ip_string):
 def process_file(file_info, temp_dir):
     try:
         # Download file
-        response = requests.get(file_info["url"], verify=False)
+        response = requests.get(file_info["url"])
         response.raise_for_status()
 
         # Read content
@@ -89,16 +90,13 @@ def process_file(file_info, temp_dir):
                     else:
                         output_rows.append([line.strip()])
 
-        # Save to CSV directly
+        # Create DataFrame
+        df = pd.DataFrame(output_rows, columns=file_info["headers"])
+
+        # Save to CSV
         output_filename = f"ti_{file_info['name']}.csv"
         output_path = os.path.join(temp_dir, output_filename)
-
-        with open(output_path, 'w', newline='') as csvfile:
-            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
-            # Write headers
-            writer.writerow(file_info["headers"])
-            # Write data rows
-            writer.writerows(output_rows)
+        df.to_csv(output_path, index=False, quoting=csv.QUOTE_MINIMAL)
 
         return output_path
     except Exception as e:
