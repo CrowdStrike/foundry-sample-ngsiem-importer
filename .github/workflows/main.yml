@@ -15,7 +15,10 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
         working-directory: functions/ti-import-to-ng-siem
-      - name: Run Python functions and verify output
+      - name: Run unit tests
+        run: pytest
+        working-directory: functions/ti-import-to-ng-siem
+      - name: Run Python function and verify output
         run: |
           python main.py > output.log 2>&1 &
           PID=$!
