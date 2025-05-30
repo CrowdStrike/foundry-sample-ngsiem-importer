@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 import pandas as pd
 import tempfile
 import os
@@ -178,8 +178,9 @@ def test_handler_success(mock_ngsiem):
         import main
         importlib.reload(main)
 
-        with patch('main.open'), \
+        with patch('os.path.exists') as mock_exists, \
                 patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = True
             mock_process_file.return_value = "/tmp/test_file.csv"
 
             # execute handler
@@ -210,8 +211,9 @@ def test_handler_with_processing_error(mock_ngsiem):
         importlib.reload(main)
 
         # Setup mocks - first file fails, others succeed
-        with patch('main.open'), \
+        with patch('os.path.exists') as mock_exists, \
                 patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = True
             mock_process_file.side_effect = [
                 Exception("Failed to process"),  # First file fails
                 *["/tmp/test_file.csv"] * (len(FILES_TO_PROCESS) - 1)  # Rest succeed
@@ -231,6 +233,40 @@ def test_handler_with_processing_error(mock_ngsiem):
 
             # Verify NGSIEM upload was called for successful files only
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS) - 1
+
+def test_handler_with_missing_files(mock_ngsiem):
+    """Test handler with processing error for all files"""
+
+    # Create request
+    request = Request(
+        body={"repository": "custom-repo"},
+    )
+
+    with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
+        import importlib
+        import main
+        importlib.reload(main)
+
+        # Setup mocks - first file fails, others succeed
+        with patch('os.path.exists') as mock_exists, \
+                patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = False
+            mock_process_file.return_value = "/tmp/test_file.csv"
+
+            # Execute handler
+            response = main.next_gen_siem_csv_import(request, {})
+
+            # Verify results
+            assert response.code == 200
+            assert "results" in response.body
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+
+            # Verify all files have error
+            assert response.body["results"][0]["status"] == "error"
+            assert response.body["results"][0]["message"] == "File does not exist"
+
+            # Verify NGSIEM upload was not called
+            assert mock_ngsiem.upload_file.call_count == 0
 
 def test_handler_global_exception(mock_ngsiem):
     """Test handler with a global exception"""
@@ -303,8 +339,9 @@ def test_handler_default_repository(mock_ngsiem):
         import main
         importlib.reload(main)
 
-        with patch('main.open'), \
+        with patch('os.path.exists') as mock_exists, \
                 patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = True
             mock_process_file.return_value = "/tmp/test_file.csv"
 
             # Execute handler

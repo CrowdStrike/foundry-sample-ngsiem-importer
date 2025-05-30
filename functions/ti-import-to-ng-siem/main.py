@@ -6,6 +6,7 @@ import tempfile
 import os
 import ipaddress
 import csv
+from typing import Union, Dict
 
 func = Function.instance()
 
@@ -103,7 +104,7 @@ def process_file(file_info, temp_dir):
         raise Exception(f"Error processing {file_info['name']}: {str(e)}")
 
 @func.handler(method='POST', path='/ti-import-bulk')
-def next_gen_siem_csv_import(request: Request, config) -> Response:
+def next_gen_siem_csv_import(request: Request, config: Union[Dict[str, object], None]) -> Response:
     try:
         # Get parameters
         repository = request.body.get('repository', 'search-all').strip()
@@ -119,14 +120,13 @@ def next_gen_siem_csv_import(request: Request, config) -> Response:
             for file_info in FILES_TO_PROCESS:
                 try:
                     output_path = process_file(file_info, temp_dir)
+                    if not os.path.exists(output_path):
+                        raise FileNotFoundError("File does not exist")
 
-                    # Upload to NGSIEM
-                    with open(output_path, 'rb') as f:
-                        upload_response = ngsiem.upload_file(
-                            lookup_file=output_path,
-                            repository=repository
-                        )
-
+                    ngsiem.upload_file(
+                        lookup_file=output_path,
+                        repository=repository
+                    )
                     results.append({
                         "file": file_info["name"],
                         "status": "success",
