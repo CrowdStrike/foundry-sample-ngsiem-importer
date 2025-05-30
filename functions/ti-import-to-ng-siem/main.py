@@ -58,7 +58,7 @@ def is_valid_ipv4(ip_string):
 def process_file(file_info, temp_dir):
     try:
         # Download file
-        response = requests.get(file_info["url"], verify=False)
+        response = requests.get(file_info["url"])
         response.raise_for_status()
 
         # Read content
