@@ -1,5 +1,5 @@
 name: Threat Intel Import to NG-SIEM
-description: Automatically downloads, processes, and uploads CSV files to Next-Gen SIEM
+description: Automatically downloads data from Open Source Threat Intel Providers, converts them to CSV files, and uploads them to Next-Gen SIEM
 logo: images/falcon-logo.png
 vendor: CrowdStrike
 vendor_products:
