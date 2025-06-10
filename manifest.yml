@@ -1,3 +1,4 @@
+app_id: ""
 name: Threat Intel Import to NG-SIEM
 description: Automatically downloads data from Open Source Threat Intel Providers, converts them to CSV files, and uploads them to Next-Gen SIEM
 logo: images/falcon-logo.png
@@ -26,7 +27,8 @@ auth:
     permissions: {}
     roles: []
 functions:
-    - name: ti-import-to-ng-siem
+    - id: ""
+      name: ti-import-to-ng-siem
       config: null
       description: Downloads, processes, and uploads CSV files to Next-Gen SIEM
       path: functions/ti-import-to-ng-siem
@@ -40,6 +42,7 @@ functions:
           request_schema: schemas/request_schema.json
           response_schema: schemas/response_schema.json
           workflow_integration:
+            id: ""
             disruptive: false
             system_action: true
             tags:
@@ -47,10 +50,15 @@ functions:
           permissions: []
       language: python
 workflows:
-    - name: TI Import Scheduler
+    - id: ""
+      name: TI Import Scheduler
       path: workflows/TI_Import_Scheduler.yml
+      permissions: []
 parsers: []
 logscale:
     saved_searches: []
 lookup_files: []
-docs: {}
+docs:
+    id: ""
+    path: app_docs
+    entrypoint: README.md
