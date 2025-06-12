@@ -1,12 +1,15 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
+    "title": "Threat Intel Import Request",
+    "description": "Parameters for importing threat intelligence data to NG-SIEM",
     "properties": {
         "repository": {
             "type": "string",
-            "description": "Repository name for file upload",
-            "default": "search-all"
+            "description": "The NG-SIEM repository name where lookup files will be uploaded",
+            "default": "search-all",
+            "examples": ["search-all", "my-custom-repository"]
         }
-    }
+    },
+    "additionalProperties": false
 }
-

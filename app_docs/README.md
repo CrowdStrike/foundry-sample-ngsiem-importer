@@ -1,4 +1,4 @@
-# Threat Intel Import to NG-SIEM sample Foundry app
+Threat Intel Import to NG-SIEM sample Foundry app
 
 This app has a Python function that downloads threat intelligence from multiple public sources:
 
@@ -22,9 +22,22 @@ Finally, it uploads lookup files to NG-SIEM using FalconPy:
 - Uploads CSVs to the specified NG-SIEM repository (default: "search-all")
 - Returns status information for each processed file
 
+## Features & Improvements
+
+This app includes several modern features to enhance performance and reliability:
+
+- **Concurrent Processing**: Downloads and processes multiple threat intelligence sources in parallel
+- **Object-Oriented Design**: Modular code structure with the `ThreatIntelProcessor` class
+- **Enhanced Error Handling**: Robust error catching and reporting for each source
+- **Request Timeouts**: Prevents hanging on slow or unresponsive servers
+- **Comprehensive Logging**: Detailed logs for monitoring and troubleshooting
+- **Type Annotations**: Improved code readability and IDE support with Python typing
+
+## Workflow Information
+
 After installing this app, you can find its workflow in **Fusion SOAR** > **Workflows**. This workflow:
 
 - Runs automatically at 3:00 AM Eastern Time (America/New_York) every day
 - Can also be triggered manually through the CrowdStrike platform
 
-The source code for this app can be found on GitHub: <https://github.com/CrowdStrike/foundry-sample-ngsiem-importer>. 
+The source code for this app can be found on GitHub: <https://github.com/CrowdStrike/foundry-sample-ngsiem-importer>.

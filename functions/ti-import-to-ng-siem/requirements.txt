@@ -5,3 +5,5 @@ ipaddress==1.0.23
 # numpy and pandas are pinned to prevent "Error importing numpy"
 numpy==2.2.6
 pandas==2.3.0
+# Add timeout to requests to prevent hanging
+urllib3>=1.26.0
