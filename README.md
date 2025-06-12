@@ -16,7 +16,7 @@ The NG-SIEM Importer sample Foundry app automates the collection, processing, an
 ## Prerequisites
 
 * The Foundry CLI (instructions below).
-* Python 3.11+ (needed if modifying the app's functions). See [Python For Beginners](https://www.python.org/about/gettingstarted/) for installation instructions.
+* Python 3.10+ (needed if modifying the app's functions). See [Python For Beginners](https://www.python.org/about/gettingstarted/) for installation instructions.
 
 ### Install the Foundry CLI
 
