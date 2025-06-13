@@ -1,30 +1,50 @@
 {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
+    "title": "Threat Intel Import Response",
+    "description": "Results of the threat intelligence import operation",
     "properties": {
         "results": {
             "type": "array",
+            "description": "Array of processing results for each threat intelligence source",
             "items": {
                 "type": "object",
                 "properties": {
                     "file": {
                         "type": "string",
-                        "description": "Name of the processed file"
+                        "description": "The name identifier of the processed threat intelligence source"
                     },
                     "status": {
                         "type": "string",
                         "enum": ["success", "error"],
-                        "description": "Status of the file processing"
+                        "description": "Status of the file processing operation (success or error)"
                     },
                     "message": {
                         "type": "string",
-                        "description": "Details about the processing result"
+                        "description": "Detailed message about the processing result or error information"
                     }
                 },
-                "required": ["file", "status", "message"]
+                "required": ["file", "status", "message"],
+                "additionalProperties": false
             }
         }
     },
-    "required": ["results"]
+    "required": ["results"],
+    "additionalProperties": false,
+    "examples": [
+        {
+            "results": [
+                {
+                    "file": "domain-botvrij-eu",
+                    "status": "success",
+                    "message": "File processed and uploaded successfully"
+                },
+                {
+                    "file": "ip-emerging-threats",
+                    "status": "error",
+                    "message": "Error processing: Connection timeout"
+                }
+            ]
+        }
+    ]
 }
-
