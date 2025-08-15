@@ -1,12 +1,11 @@
 from crowdstrike.foundry.function import APIError, Function, Request, Response
-from falconpy import NGSIEM
 import requests
 import pandas as pd
-import tempfile
 import os
 import ipaddress
 import csv
-from typing import Union, Dict
+from typing import Dict, Optional
+from falconpy import NGSIEM
 
 func = Function.instance()
 
@@ -57,7 +56,16 @@ def is_valid_ipv4(ip_string):
     except:
         return False
 
-def process_file(file_info, temp_dir):
+def validate_csv_file(file_path):
+    """Validate that the file is a proper CSV file"""
+    try:
+        df = pd.read_csv(file_path)
+        # Empty CSV files are still valid, just with 0 rows
+        return True, f"CSV file is valid with {len(df)} rows"
+    except Exception as e:
+        return False, f"CSV validation failed: {str(e)}"
+
+def download_and_create_csv(file_info):
     try:
         # Download file
         response = requests.get(file_info["url"])
@@ -94,61 +102,104 @@ def process_file(file_info, temp_dir):
         # Create DataFrame
         df = pd.DataFrame(output_rows, columns=file_info["headers"])
 
-        # Save to CSV
+        # Save to CSV in the functions directory
         output_filename = f"ti_{file_info['name']}.csv"
-        output_path = os.path.join(temp_dir, output_filename)
+        output_path = os.path.join(os.path.dirname(__file__), output_filename)
         df.to_csv(output_path, index=False, quoting=csv.QUOTE_MINIMAL)
 
-        return output_path
+        # Validate the created CSV file
+        is_valid, validation_message = validate_csv_file(output_path)
+        if not is_valid:
+            raise Exception(f"CSV validation failed for {file_info['name']}: {validation_message}")
+
+        return output_path, validation_message
     except Exception as e:
         raise Exception(f"Error processing {file_info['name']}: {str(e)}")
 
-@func.handler(method='POST', path='/ti-import-bulk')
-def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None, logger) -> Response:
+def upload_file_to_ngsiem(file_path, repository):
+    """Upload file to NGSIEM using FalconPy client"""
+    falcon = NGSIEM(debug=True)
+
     try:
-        # Get parameters
-        repository = request.body.get('repository', 'search-all').strip()
+        response = falcon.upload_file(
+            lookup_file=file_path,
+            repository=repository
+        )
+        return response
+    except Exception as e:
+        return {
+            "status_code": 500,
+            "error": {"message": str(e)}
+        }
 
-        # Initialize NGSIEM client
-        ngsiem = NGSIEM()
+@func.handler(method='POST', path='/ti-import-bulk')
+def next_gen_siem_csv_import(request: Request, config: Optional[Dict[str, object]], logger) -> Response:
+    try:
+        # Get access token from request
+        access_token = request.access_token
+        if not access_token:
+            return Response(
+                errors=[APIError(code=401, message="Access token not available")],
+                code=401
+            )
 
-        # Create temporary directory
-        with tempfile.TemporaryDirectory() as temp_dir:
-            results = []
+        # Get repository from request body, default to "search-all"
+        repository = request.body.get("repository", "search-all") if request.body else "search-all"
 
-            # Process each file
-            for file_info in FILES_TO_PROCESS:
-                try:
-                    output_path = process_file(file_info, temp_dir)
-                    if not os.path.exists(output_path):
-                        raise FileNotFoundError("File does not exist")
+        results = []
 
-                    response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
+        # Process each file
+        for file_info in FILES_TO_PROCESS:
+            try:
+                # Check if CSV file already exists in functions directory
+                output_filename = f"ti_{file_info['name']}.csv"
+                output_path = os.path.join(os.path.dirname(__file__), output_filename)
 
-                    # Log the raw response for troubleshooting
-                    logger.info(f"API response: {response}")
+                if os.path.exists(output_path):
+                    # File exists, validate it and use it
+                    is_valid, validation_message = validate_csv_file(output_path)
+                    if not is_valid:
+                        # Re-download if validation fails
+                        logger.info(f"Existing file {output_filename} is invalid, re-downloading: {validation_message}")
+                        output_path, validation_message = download_and_create_csv(file_info)
+                    else:
+                        logger.info(f"Using existing file {output_filename}: {validation_message}")
+                else:
+                    # File doesn't exist, download and create it
+                    logger.info(f"File {output_filename} not found, downloading and creating...")
+                    output_path, validation_message = download_and_create_csv(file_info)
 
-                    if response["status_code"] >= 400:
-                        error_message = response.get("error", {}).get("message", "Unknown error")
-                        return Response(
-                            code=response["status_code"],
-                            errors=[APIError(
-                                code=response["status_code"],
-                                message=f"NGSIEM upload error: {error_message}"
-                            )]
-                        )
+                logger.info(f"File validation for {file_info['name']}: {validation_message}")
 
-                    results.append({
-                        "file": file_info["name"],
-                        "status": "success",
-                        "message": f"File processed and uploaded successfully"
-                    })
-                except Exception as e:
-                    results.append({
-                        "file": file_info["name"],
-                        "status": "error",
-                        "message": str(e)
-                    })
+                # Upload the file to NGSIEM
+                response = upload_file_to_ngsiem(output_path, repository)
+
+                # Log the raw response for troubleshooting
+                logger.info(f"API response for {file_info['name']}: {response}")
+
+                if response.get("status_code", 200) >= 400:
+                    error_message = response.get("error", {}).get("message", "Unknown error")
+
+                    return Response(
+                        code=response.get("status_code", 500),
+                        errors=[APIError(
+                            code=response.get("status_code", 500),
+                            message=f"NGSIEM upload error for {file_info['name']}: {error_message}"
+                        )]
+                    )
+
+                results.append({
+                    "file": file_info["name"],
+                    "status": "success",
+                    "message": f"File processed and uploaded successfully. {validation_message}",
+                    "path": output_path
+                })
+            except Exception as e:
+                results.append({
+                    "file": file_info["name"],
+                    "status": "error",
+                    "message": str(e)
+                })
 
         return Response(
             body={"results": results},
