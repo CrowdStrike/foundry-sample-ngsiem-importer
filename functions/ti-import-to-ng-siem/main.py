@@ -1,11 +1,11 @@
 from crowdstrike.foundry.function import APIError, Function, Request, Response
+from falconpy import NGSIEM
 import requests
 import pandas as pd
 import os
 import ipaddress
 import csv
 from typing import Dict, Optional
-from falconpy import NGSIEM
 
 func = Function.instance()
 
