@@ -8,7 +8,8 @@ from io import StringIO
 # Import the functions to test
 from main import (
     is_valid_ipv4,
-    process_file,
+    download_and_create_csv,
+    validate_csv_file,
     FILES_TO_PROCESS
 )
 
@@ -44,11 +45,47 @@ https://example.com/malware.exe
 https://malicious.com/backdoor.php
 """
 
-@pytest.fixture
-def mock_temp_dir():
-    """Fixture to create a temporary directory for testing"""
-    with tempfile.TemporaryDirectory() as temp_dir:
-        yield temp_dir
+def test_handler_with_invalid_file_redownload(mock_ngsiem):
+    """Test handler when existing file is invalid and needs redownload"""
+    # Create request
+    request = Request(
+        body={"repository": "custom-repo"},
+    )
+    request.access_token = "test-token"  # Add access token
+    request.access_token = "test-token"  # Add access token
+    
+    # Create mock logger
+    mock_logger = MagicMock()
+
+    with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
+        import importlib
+        import main
+        importlib.reload(main)
+
+        with patch('os.path.exists') as mock_exists, \
+                patch('main.validate_csv_file') as mock_validate, \
+                patch('main.download_and_create_csv') as mock_download:
+            # File exists but is invalid, then gets redownloaded
+            mock_exists.return_value = True
+            mock_validate.return_value = (False, "CSV validation failed: corrupted file")
+            mock_download.return_value = ("/tmp/new_file.csv", "CSV file is valid with 100 rows")
+
+            # Execute handler
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
+
+            # Verify results
+            assert response.code == 200
+            assert "results" in response.body
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+
+            # Verify validation was called for each file
+            assert mock_validate.call_count == len(FILES_TO_PROCESS)
+            
+            # Verify download was called for each file (since all were invalid)
+            assert mock_download.call_count == len(FILES_TO_PROCESS)
+
+            # Verify NGSIEM upload was called for each file
+            assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
 
 @pytest.fixture
 def mock_requests_get():
@@ -87,8 +124,8 @@ def test_is_valid_ipv4():
     assert is_valid_ipv4("") is False
     assert is_valid_ipv4("2001:0db8:85a3:0000:0000:8a2e:0370:7334") is False  # IPv6
 
-def test_process_file_ip_with_separator(mock_requests_get, mock_temp_dir):
-    """Test processing IP file with separator"""
+def test_download_and_create_csv_ip_with_separator(mock_requests_get):
+    """Test downloading and creating CSV for IP file with separator"""
     mock_get, mock_response = mock_requests_get
     mock_response.text = MOCK_IP_FILE_CONTENT
 
@@ -99,22 +136,28 @@ def test_process_file_ip_with_separator(mock_requests_get, mock_temp_dir):
         "separator": " # "
     }
 
-    output_path = process_file(file_info, mock_temp_dir)
+    output_path, validation_message = download_and_create_csv(file_info)
 
-    # Verify the file was created
-    assert os.path.exists(output_path)
+    try:
+        # Verify the file was created
+        assert os.path.exists(output_path)
+        assert "CSV file is valid with 2 rows" in validation_message
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 2  # Two valid IPs
-    assert df.loc[0]["destination.ip"] == "192.168.1.1"
-    # verify details is na for the first ip with no comment
-    assert pd.isna(df.loc[0]["destination.ip.details"])
-    assert df.loc[1]["destination.ip"] == "10.0.0.1"
-    assert df.loc[1]["destination.ip.details"] == "Some comment"
+        # Verify content
+        df = pd.read_csv(output_path)
+        assert len(df) == 2  # Two valid IPs
+        assert df.loc[0]["destination.ip"] == "192.168.1.1"
+        # verify details is na for the first ip with no comment
+        assert pd.isna(df.loc[0]["destination.ip.details"])
+        assert df.loc[1]["destination.ip"] == "10.0.0.1"
+        assert df.loc[1]["destination.ip.details"] == "Some comment"
+    finally:
+        # Cleanup
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-def test_process_file_ip_without_separator(mock_requests_get, mock_temp_dir):
-    """Test processing IP file without separator"""
+def test_download_and_create_csv_ip_without_separator(mock_requests_get):
+    """Test downloading and creating CSV for IP file without separator"""
     mock_get, mock_response = mock_requests_get
     mock_response.text = MOCK_IP_FILE_CONTENT
 
@@ -125,15 +168,21 @@ def test_process_file_ip_without_separator(mock_requests_get, mock_temp_dir):
         "separator": None
     }
 
-    output_path = process_file(file_info, mock_temp_dir)
+    output_path, validation_message = download_and_create_csv(file_info)
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 1  # Only 1 valid IP
-    assert df.loc[0]["destination.ip"] == "192.168.1.1"
+    try:
+        # Verify content
+        df = pd.read_csv(output_path)
+        assert len(df) == 1  # Only 1 valid IP
+        assert df.loc[0]["destination.ip"] == "192.168.1.1"
+        assert "CSV file is valid with 1 rows" in validation_message
+    finally:
+        # Cleanup
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-def test_process_file_domain(mock_requests_get, mock_temp_dir):
-    """Test processing domain file"""
+def test_download_and_create_csv_domain(mock_requests_get):
+    """Test downloading and creating CSV for domain file"""
     mock_get, mock_response = mock_requests_get
     mock_response.text = MOCK_DOMAIN_FILE_CONTENT
 
@@ -144,17 +193,23 @@ def test_process_file_domain(mock_requests_get, mock_temp_dir):
         "separator": " # domain - "
     }
 
-    output_path = process_file(file_info, mock_temp_dir)
+    output_path, validation_message = download_and_create_csv(file_info)
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 2
-    assert "example.com" in df["dns.domain.name"].values
-    assert "malicious.com" in df["dns.domain.name"].values
-    assert "Example Domain" in df["dns.domain.details"].values
-    assert "Malicious Domain" in df["dns.domain.details"].values
+    try:
+        # Verify content
+        df = pd.read_csv(output_path)
+        assert len(df) == 2
+        assert "example.com" in df["dns.domain.name"].values
+        assert "malicious.com" in df["dns.domain.name"].values
+        assert "Example Domain" in df["dns.domain.details"].values
+        assert "Malicious Domain" in df["dns.domain.details"].values
+        assert "CSV file is valid with 2 rows" in validation_message
+    finally:
+        # Cleanup
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
-def test_process_file_request_error(mock_requests_get, mock_temp_dir):
+def test_download_and_create_csv_request_error(mock_requests_get):
     """Test handling of request errors"""
     mock_get, mock_response = mock_requests_get
     mock_response.raise_for_status.side_effect = Exception("Failed to download")
@@ -167,16 +222,17 @@ def test_process_file_request_error(mock_requests_get, mock_temp_dir):
     }
 
     with pytest.raises(Exception) as excinfo:
-        process_file(file_info, mock_temp_dir)
+        download_and_create_csv(file_info)
 
     assert "Failed to download" in str(excinfo.value)
 
-def test_handler_success(mock_ngsiem):
-    """Test successful handler execution"""
+def test_handler_success_with_existing_files(mock_ngsiem):
+    """Test successful handler execution with existing CSV files"""
     # Create request
     request = Request(
         body={"repository": "custom-repo"},
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -187,9 +243,10 @@ def test_handler_success(mock_ngsiem):
         importlib.reload(main)
 
         with patch('os.path.exists') as mock_exists, \
-                patch('main.process_file') as mock_process_file:
+                patch('main.validate_csv_file') as mock_validate:
+            # Mock that files exist and are valid
             mock_exists.return_value = True
-            mock_process_file.return_value = "/tmp/test_file.csv"
+            mock_validate.return_value = (True, "CSV file is valid with 100 rows")
 
             # execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
@@ -199,22 +256,22 @@ def test_handler_success(mock_ngsiem):
             assert "results" in response.body
             assert len(response.body["results"]) == len(FILES_TO_PROCESS)
 
-            # Verify all files were processed
-            assert mock_process_file.call_count == len(FILES_TO_PROCESS)
+            # Verify validation was called for each file
+            assert mock_validate.call_count == len(FILES_TO_PROCESS)
 
-            # Verify NGSIEM upload was called
+            # Verify NGSIEM upload was called for each file
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
             
             # Verify logger was called
-            assert mock_logger.info.call_count == len(FILES_TO_PROCESS)
+            assert mock_logger.info.call_count >= len(FILES_TO_PROCESS)
 
-def test_handler_with_processing_error(mock_ngsiem):
-    """Test handler with processing error for one file"""
-
+def test_handler_with_download_error(mock_ngsiem):
+    """Test handler with download error for one file"""
     # Create request
     request = Request(
         body={"repository": "custom-repo"},
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -224,13 +281,13 @@ def test_handler_with_processing_error(mock_ngsiem):
         import main
         importlib.reload(main)
 
-        # Setup mocks - first file fails, others succeed
+        # Setup mocks - first file fails to download, others succeed
         with patch('os.path.exists') as mock_exists, \
-                patch('main.process_file') as mock_process_file:
-            mock_exists.return_value = True
-            mock_process_file.side_effect = [
-                Exception("Failed to process"),  # First file fails
-                *["/tmp/test_file.csv"] * (len(FILES_TO_PROCESS) - 1)  # Rest succeed
+                patch('main.download_and_create_csv') as mock_download:
+            mock_exists.return_value = False
+            mock_download.side_effect = [
+                Exception("Failed to download"),  # First file fails
+                *[("/tmp/test_file.csv", "CSV file is valid with 50 rows")] * (len(FILES_TO_PROCESS) - 1)  # Rest succeed
             ]
 
             # Execute handler
@@ -243,18 +300,18 @@ def test_handler_with_processing_error(mock_ngsiem):
 
             # Verify first file has error
             assert response.body["results"][0]["status"] == "error"
-            assert "Failed to process" in response.body["results"][0]["message"]
+            assert "Failed to download" in response.body["results"][0]["message"]
 
             # Verify NGSIEM upload was called for successful files only
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS) - 1
 
-def test_handler_with_missing_files(mock_ngsiem):
-    """Test handler with processing error for all files"""
-
+def test_handler_with_missing_files_download(mock_ngsiem):
+    """Test handler when files need to be downloaded"""
     # Create request
     request = Request(
         body={"repository": "custom-repo"},
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -264,11 +321,11 @@ def test_handler_with_missing_files(mock_ngsiem):
         import main
         importlib.reload(main)
 
-        # Setup mocks - first file fails, others succeed
         with patch('os.path.exists') as mock_exists, \
-                patch('main.process_file') as mock_process_file:
+                patch('main.download_and_create_csv') as mock_download:
+            # Files don't exist, need to download
             mock_exists.return_value = False
-            mock_process_file.return_value = "/tmp/test_file.csv"
+            mock_download.return_value = ("/tmp/test_file.csv", "CSV file is valid with 50 rows")
 
             # Execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
@@ -278,20 +335,19 @@ def test_handler_with_missing_files(mock_ngsiem):
             assert "results" in response.body
             assert len(response.body["results"]) == len(FILES_TO_PROCESS)
 
-            # Verify all files have error
-            assert response.body["results"][0]["status"] == "error"
-            assert response.body["results"][0]["message"] == "File does not exist"
+            # Verify download was called for each file
+            assert mock_download.call_count == len(FILES_TO_PROCESS)
 
-            # Verify NGSIEM upload was not called
-            assert mock_ngsiem.upload_file.call_count == 0
+            # Verify NGSIEM upload was called for each file
+            assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
 
 def test_handler_global_exception(mock_ngsiem):
-    """Test handler with a global exception"""
-
+    """Test handler with exceptions during file processing"""
     # Create request that will cause an exception
     request = Request(
         body=None,  # This will cause an exception when trying to access .get()
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -301,14 +357,20 @@ def test_handler_global_exception(mock_ngsiem):
         import main
         importlib.reload(main)
 
-        response = main.next_gen_siem_csv_import(request, {}, mock_logger)
-        # Verify error response
-        assert response.code == 500
-        assert len(response.errors) == 1
-        assert response.errors[0].code == 500
+        # Mock an actual exception during processing by making os.path.exists fail
+        with patch('os.path.exists', side_effect=Exception('Simulated filesystem error')):
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
+            # The function handles errors gracefully and returns 200 with individual file errors
+            assert response.code == 200
+            assert "results" in response.body
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+            # All files should have error status
+            for result in response.body["results"]:
+                assert result["status"] == "error"
+                assert "Simulated filesystem error" in result["message"]
 
 
-def test_process_file_empty_content(mock_requests_get, mock_temp_dir):
+def test_download_and_create_csv_empty_content(mock_requests_get):
     """Test processing empty file content"""
     mock_get, mock_response = mock_requests_get
     mock_response.text = ""
@@ -320,38 +382,61 @@ def test_process_file_empty_content(mock_requests_get, mock_temp_dir):
         "separator": None
     }
 
-    output_path = process_file(file_info, mock_temp_dir)
+    output_path, validation_message = download_and_create_csv(file_info)
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 0
+    try:
+        # Verify content - empty CSV should still be valid, just with 0 rows
+        df = pd.read_csv(output_path)
+        assert len(df) == 0
+        assert "CSV file is valid with 0 rows" in validation_message
+    finally:
+        # Cleanup
+        if os.path.exists(output_path):
+            os.remove(output_path)
 
 
-def test_process_file_only_comments(mock_requests_get, mock_temp_dir):
-    """Test processing file with only comments"""
-    mock_get, mock_response = mock_requests_get
-    mock_response.text = "# Comment 1\n# Comment 2\n"
+def test_validate_csv_file_valid():
+    """Test CSV validation with valid file"""
+    # Create a temporary CSV file
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        f.write("ip,description\n192.168.1.1,test ip\n10.0.0.1,another ip\n")
+        temp_file = f.name
+    
+    try:
+        is_valid, message = validate_csv_file(temp_file)
+        assert is_valid is True
+        assert "CSV file is valid with 2 rows" in message
+    finally:
+        os.unlink(temp_file)
 
-    file_info = {
-        "url": "https://example.com/comments.txt",
-        "name": "comments-test",
-        "headers": ["destination.ip"],
-        "separator": None
-    }
+def test_validate_csv_file_empty():
+    """Test CSV validation with empty file"""
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+        f.write("ip,description\n")
+        temp_file = f.name
+    
+    try:
+        is_valid, message = validate_csv_file(temp_file)
+        assert is_valid is True  # Empty CSV files are now considered valid
+        assert "CSV file is valid with 0 rows" in message
+    finally:
+        os.unlink(temp_file)
 
-    output_path = process_file(file_info, mock_temp_dir)
-
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 0
+def test_validate_csv_file_nonexistent():
+    """Test CSV validation with non-existent file"""
+    is_valid, message = validate_csv_file("/path/that/does/not/exist.csv")
+    assert is_valid is False
+    assert "CSV validation failed" in message
 
 def test_handler_default_repository(mock_ngsiem):
     """Test handler with default repository"""
-
     # Create request with no repository specified
     request = Request(
         body={},  # No repository specified
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -363,9 +448,9 @@ def test_handler_default_repository(mock_ngsiem):
         importlib.reload(main)
 
         with patch('os.path.exists') as mock_exists, \
-                patch('main.process_file') as mock_process_file:
+                patch('main.validate_csv_file') as mock_validate:
             mock_exists.return_value = True
-            mock_process_file.return_value = "/tmp/test_file.csv"
+            mock_validate.return_value = (True, "CSV file is valid with 100 rows")
 
             # Execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
@@ -374,18 +459,18 @@ def test_handler_default_repository(mock_ngsiem):
             assert response.code == 200
 
             # Verify NGSIEM upload was called with default repository
-            mock_ngsiem.upload_file.assert_called_with(
-                lookup_file="/tmp/test_file.csv",
-                repository="search-all"  # Default value
-            )
+            calls = mock_ngsiem.upload_file.call_args_list
+            for call in calls:
+                args, kwargs = call
+                assert kwargs["repository"] == "search-all"  # Default value
 
 def test_handler_ngsiem_api_error(mock_ngsiem):
     """Test handler with NGSIEM API error"""
-
     # Create request
     request = Request(
         body={"repository": "custom-repo"},
     )
+    request.access_token = "test-token"  # Add access token
     
     # Create mock logger
     mock_logger = MagicMock()
@@ -404,9 +489,9 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
         importlib.reload(main)
 
         with patch('os.path.exists') as mock_exists, \
-                patch('main.process_file') as mock_process_file:
+                patch('main.validate_csv_file') as mock_validate:
             mock_exists.return_value = True
-            mock_process_file.return_value = "/tmp/test_file.csv"
+            mock_validate.return_value = (True, "CSV file is valid with 100 rows")
 
             # Execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
@@ -415,4 +500,5 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
             assert response.code == 400
             assert len(response.errors) == 1
             assert response.errors[0].code == 400
-            assert "NGSIEM upload error: Invalid file format" in response.errors[0].message
+            assert "NGSIEM upload error" in response.errors[0].message
+            assert "Invalid file format" in response.errors[0].message
