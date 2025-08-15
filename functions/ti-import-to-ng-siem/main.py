@@ -104,7 +104,7 @@ def process_file(file_info, temp_dir):
         raise Exception(f"Error processing {file_info['name']}: {str(e)}")
 
 @func.handler(method='POST', path='/ti-import-bulk')
-def next_gen_siem_csv_import(request: Request, config: Union[Dict[str, object], None]) -> Response:
+def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None, logger) -> Response:
     try:
         # Get parameters
         repository = request.body.get('repository', 'search-all').strip()
@@ -123,10 +123,21 @@ def next_gen_siem_csv_import(request: Request, config: Union[Dict[str, object], 
                     if not os.path.exists(output_path):
                         raise FileNotFoundError("File does not exist")
 
-                    ngsiem.upload_file(
-                        lookup_file=output_path,
-                        repository=repository
-                    )
+                    response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
+
+                    # Log the raw response for troubleshooting
+                    logger.info(f"API response: {response}")
+
+                    if response["status_code"] >= 400:
+                        error_message = response.get("error", {}).get("message", "Unknown error")
+                        return Response(
+                            code=response["status_code"],
+                            errors=[APIError(
+                                code=response["status_code"],
+                                message=f"NGSIEM upload error: {error_message}"
+                            )]
+                        )
+
                     results.append({
                         "file": file_info["name"],
                         "status": "success",

@@ -64,6 +64,11 @@ def mock_ngsiem():
     """Fixture to mock NGSIEM client"""
     with patch('falconpy.NGSIEM') as mock_ngsiem_class:
         mock_instance = MagicMock()
+        # Mock successful upload response
+        mock_instance.upload_file.return_value = {
+            "status_code": 200,
+            "body": {"message": "File uploaded successfully"}
+        }
         mock_ngsiem_class.return_value = mock_instance
         yield mock_instance
 
@@ -172,6 +177,9 @@ def test_handler_success(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
 
     with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
         import importlib
@@ -184,7 +192,7 @@ def test_handler_success(mock_ngsiem):
             mock_process_file.return_value = "/tmp/test_file.csv"
 
             # execute handler
-            response = main.next_gen_siem_csv_import(request, {})
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
             # Verify results
             assert response.code == 200
@@ -196,6 +204,9 @@ def test_handler_success(mock_ngsiem):
 
             # Verify NGSIEM upload was called
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
+            
+            # Verify logger was called
+            assert mock_logger.info.call_count == len(FILES_TO_PROCESS)
 
 def test_handler_with_processing_error(mock_ngsiem):
     """Test handler with processing error for one file"""
@@ -204,6 +215,9 @@ def test_handler_with_processing_error(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
 
     with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
         import importlib
@@ -220,7 +234,7 @@ def test_handler_with_processing_error(mock_ngsiem):
             ]
 
             # Execute handler
-            response = main.next_gen_siem_csv_import(request, {})
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
             # Verify results
             assert response.code == 200
@@ -241,6 +255,9 @@ def test_handler_with_missing_files(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
 
     with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
         import importlib
@@ -254,7 +271,7 @@ def test_handler_with_missing_files(mock_ngsiem):
             mock_process_file.return_value = "/tmp/test_file.csv"
 
             # Execute handler
-            response = main.next_gen_siem_csv_import(request, {})
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
             # Verify results
             assert response.code == 200
@@ -275,13 +292,16 @@ def test_handler_global_exception(mock_ngsiem):
     request = Request(
         body=None,  # This will cause an exception when trying to access .get()
     )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
 
     with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
         import importlib
         import main
         importlib.reload(main)
 
-        response = main.next_gen_siem_csv_import(request, {})
+        response = main.next_gen_siem_csv_import(request, {}, mock_logger)
         # Verify error response
         assert response.code == 500
         assert len(response.errors) == 1
@@ -332,6 +352,9 @@ def test_handler_default_repository(mock_ngsiem):
     request = Request(
         body={},  # No repository specified
     )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
 
     # Setup mocks
     with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
@@ -345,7 +368,7 @@ def test_handler_default_repository(mock_ngsiem):
             mock_process_file.return_value = "/tmp/test_file.csv"
 
             # Execute handler
-            response = main.next_gen_siem_csv_import(request, {})
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
             # Verify results
             assert response.code == 200
@@ -355,3 +378,41 @@ def test_handler_default_repository(mock_ngsiem):
                 lookup_file="/tmp/test_file.csv",
                 repository="search-all"  # Default value
             )
+
+def test_handler_ngsiem_api_error(mock_ngsiem):
+    """Test handler with NGSIEM API error"""
+
+    # Create request
+    request = Request(
+        body={"repository": "custom-repo"},
+    )
+    
+    # Create mock logger
+    mock_logger = MagicMock()
+
+    # Mock NGSIEM to return an error response
+    mock_ngsiem.upload_file.return_value = {
+        "status_code": 400,
+        "error": {
+            "message": "Invalid file format"
+        }
+    }
+
+    with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
+        import importlib
+        import main
+        importlib.reload(main)
+
+        with patch('os.path.exists') as mock_exists, \
+                patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = True
+            mock_process_file.return_value = "/tmp/test_file.csv"
+
+            # Execute handler
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
+
+            # Verify error response
+            assert response.code == 400
+            assert len(response.errors) == 1
+            assert response.errors[0].code == 400
+            assert "NGSIEM upload error: Invalid file format" in response.errors[0].message
