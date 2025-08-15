@@ -135,14 +135,6 @@ def upload_file_to_ngsiem(file_path, repository):
 @func.handler(method='POST', path='/ti-import-bulk')
 def next_gen_siem_csv_import(request: Request, config: Optional[Dict[str, object]], logger) -> Response:
     try:
-        # Get access token from request
-        access_token = request.access_token
-        if not access_token:
-            return Response(
-                errors=[APIError(code=401, message="Access token not available")],
-                code=401
-            )
-
         # Get repository from request body, default to "search-all"
         repository = request.body.get("repository", "search-all") if request.body else "search-all"
 
