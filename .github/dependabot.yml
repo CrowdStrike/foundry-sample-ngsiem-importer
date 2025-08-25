@@ -3,8 +3,14 @@ updates:
   - package-ecosystem: pip
     directory: "/functions/ti-import-to-ng-siem/"
     schedule:
-      interval: weekly
+      interval: "weekly"
+      day: "monday"
+      time: "14:00"
+      timezone: "UTC"
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
-      interval: weekly
+      interval: "weekly"
+      day: "monday"
+      time: "14:00"
+      timezone: "UTC"
