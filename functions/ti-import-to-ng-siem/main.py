@@ -6,7 +6,7 @@ import tempfile
 import os
 import ipaddress
 import csv
-from typing import Union, Dict
+from typing import Dict
 
 func = Function.instance()
 
