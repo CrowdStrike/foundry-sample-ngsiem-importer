@@ -376,7 +376,8 @@ def test_handler_default_repository(mock_ngsiem):
             # Verify NGSIEM upload was called with default repository
             mock_ngsiem.upload_file.assert_called_with(
                 lookup_file="/tmp/test_file.csv",
-                repository="search-all"  # Default value
+                repository="search-all",  # Default value
+                headers={"X-Cs-Traceid": ""}
             )
 
 def test_handler_ngsiem_api_error(mock_ngsiem):
@@ -411,8 +412,12 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
             # Execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
-            # Verify error response
-            assert response.code == 400
-            assert len(response.errors) == 1
-            assert response.errors[0].code == 400
-            assert "NGSIEM upload error: Invalid file format" in response.errors[0].message
+            # Verify response is still successful (bulk processing continues despite individual errors)
+            assert response.code == 200
+            assert "results" in response.body
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+
+            # Verify all files have error status due to NGSIEM API error
+            for result in response.body["results"]:
+                assert result["status"] == 400
+                assert "NGSIEM upload error:" in result["message"]
