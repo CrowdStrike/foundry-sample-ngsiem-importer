@@ -6,7 +6,7 @@ import tempfile
 import os
 import ipaddress
 import csv
-from typing import Union, Dict
+from typing import Dict
 
 func = Function.instance()
 
@@ -129,17 +129,16 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
                     logger.info(f"API response: {response}")
 
                     if response["status_code"] >= 400:
-                        error_message = response.get("error", {}).get("message", "Unknown error")
-                        return Response(
-                            code=response["status_code"],
-                            errors=[APIError(
-                                code=response["status_code"],
-                                message=f"NGSIEM upload error: {error_message}"
-                            )]
-                        )
+                        error_messages = response.get("body", {}).get("errors", [])
+                        results.append({
+                            "file": output_path,
+                            "status": response["status_code"],
+                            "message": f"NGSIEM upload error: {error_messages}"
+                        })
+                        continue
 
                     results.append({
-                        "file": file_info["name"],
+                        "file": output_path,
                         "status": "success",
                         "message": f"File processed and uploaded successfully"
                     })

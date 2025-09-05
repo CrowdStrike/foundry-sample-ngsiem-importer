@@ -177,7 +177,7 @@ def test_handler_success(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -204,7 +204,7 @@ def test_handler_success(mock_ngsiem):
 
             # Verify NGSIEM upload was called
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
-            
+
             # Verify logger was called
             assert mock_logger.info.call_count == len(FILES_TO_PROCESS)
 
@@ -215,7 +215,7 @@ def test_handler_with_processing_error(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -255,7 +255,7 @@ def test_handler_with_missing_files(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -292,7 +292,7 @@ def test_handler_global_exception(mock_ngsiem):
     request = Request(
         body=None,  # This will cause an exception when trying to access .get()
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -352,7 +352,7 @@ def test_handler_default_repository(mock_ngsiem):
     request = Request(
         body={},  # No repository specified
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -386,7 +386,7 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -411,8 +411,12 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
             # Execute handler
             response = main.next_gen_siem_csv_import(request, {}, mock_logger)
 
-            # Verify error response
-            assert response.code == 400
-            assert len(response.errors) == 1
-            assert response.errors[0].code == 400
-            assert "NGSIEM upload error: Invalid file format" in response.errors[0].message
+            # Verify response is still successful (bulk processing continues despite individual errors)
+            assert response.code == 200
+            assert "results" in response.body
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+
+            # Verify all files have error status due to NGSIEM API error
+            for result in response.body["results"]:
+                assert result["status"] == 400
+                assert "NGSIEM upload error:" in result["message"]
