@@ -177,7 +177,7 @@ def test_handler_success(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -204,7 +204,7 @@ def test_handler_success(mock_ngsiem):
 
             # Verify NGSIEM upload was called
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
-            
+
             # Verify logger was called
             assert mock_logger.info.call_count == len(FILES_TO_PROCESS)
 
@@ -215,7 +215,7 @@ def test_handler_with_processing_error(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -255,7 +255,7 @@ def test_handler_with_missing_files(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -292,7 +292,7 @@ def test_handler_global_exception(mock_ngsiem):
     request = Request(
         body=None,  # This will cause an exception when trying to access .get()
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -352,7 +352,7 @@ def test_handler_default_repository(mock_ngsiem):
     request = Request(
         body={},  # No repository specified
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 
@@ -376,8 +376,7 @@ def test_handler_default_repository(mock_ngsiem):
             # Verify NGSIEM upload was called with default repository
             mock_ngsiem.upload_file.assert_called_with(
                 lookup_file="/tmp/test_file.csv",
-                repository="search-all",  # Default value
-                headers={"X-Cs-Traceid": ""}
+                repository="search-all"  # Default value
             )
 
 def test_handler_ngsiem_api_error(mock_ngsiem):
@@ -387,7 +386,7 @@ def test_handler_ngsiem_api_error(mock_ngsiem):
     request = Request(
         body={"repository": "custom-repo"},
     )
-    
+
     # Create mock logger
     mock_logger = MagicMock()
 

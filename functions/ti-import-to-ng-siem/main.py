@@ -123,7 +123,7 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
                     if not os.path.exists(output_path):
                         raise FileNotFoundError("File does not exist")
 
-                    response = ngsiem.upload_file(lookup_file=output_path, repository=repository, headers={"X-Cs-Traceid": request.trace_id})
+                    response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
 
                     # Log the raw response for troubleshooting
                     logger.info(f"API response: {response}")
