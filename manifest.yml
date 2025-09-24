@@ -5,7 +5,7 @@ logo: images/falcon-logo.png
 vendor: CrowdStrike
 vendor_products:
     - Next-Gen SIEM
-use_case: ""
+use_case: Threat intelligence
 manifest_version: "2023-05-09"
 ignored:
     - .+/node_modules$
