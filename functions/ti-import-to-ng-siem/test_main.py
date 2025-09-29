@@ -149,8 +149,8 @@ def test_process_file_domain(mock_requests_get, mock_temp_dir):
     # Verify content
     df = pd.read_csv(output_path)
     assert len(df) == 2
-    assert "example.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization] - Test assertion checking domain name in DataFrame, not URL sanitization
-    assert "malicious.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization] - Test assertion checking domain name in DataFrame, not URL sanitization
+    assert "example.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization] - Test assertion on DataFrame column
+    assert "malicious.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization] - Test assertion on DataFrame column
     assert "Example Domain" in df["dns.domain.details"].values
     assert "Malicious Domain" in df["dns.domain.details"].values
 
