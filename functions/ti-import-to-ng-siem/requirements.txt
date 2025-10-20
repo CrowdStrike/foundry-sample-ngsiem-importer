@@ -1,6 +1,5 @@
 crowdstrike-foundry-function==1.1.2
 crowdstrike-falconpy
 ipaddress==1.0.23
-# numpy and pandas are pinned to prevent "Error importing numpy"
-numpy==2.2.6
-pandas==2.3.0
+numpy==2.3.4
+pandas==2.3.3
