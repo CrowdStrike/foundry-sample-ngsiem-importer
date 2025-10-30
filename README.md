@@ -134,6 +134,39 @@ This extension enhances an organization's security posture by:
 - Regularly updating the SIEM with fresh threat data
 - Enabling detection of malicious domains, IPs, file hashes, and URLs in security logs
 
+## End-to-End Testing
+
+This app includes comprehensive end-to-end (E2E) tests that verify:
+- Workflow execution (TI Import Scheduler)
+- Lookup file creation in NG-SIEM
+- Pre-test cleanup of existing TI lookup files
+
+### Running E2E Tests Locally
+
+```bash
+cd e2e
+npm ci
+npx playwright install chromium
+cp .env.sample .env
+# Edit .env with your Falcon credentials
+npm test
+```
+
+The tests will:
+1. Install the app
+2. Clean up any existing TI lookup files
+3. Execute the TI Import Scheduler workflow
+4. Verify the expected lookup files were created in NG-SIEM:
+   - `ti_domain-botvrij-eu.csv`
+   - `ti_sha1-botvrij-eu.csv`
+   - `ti_ip-botvrij-eu.csv`
+   - `ti_ip-emerging-threats.csv`
+   - `ti_ip-dan-me-uk-tor.csv`
+   - `ti_url-abuse-ch.csv`
+5. Uninstall the app
+
+See [e2e/README.md](e2e/README.md) for more details.
+
 ## Foundry resources
 
 - Foundry documentation: [US-1](https://falcon.crowdstrike.com/documentation/category/c3d64B8e/falcon-foundry) | [US-2](https://falcon.us-2.crowdstrike.com/documentation/category/c3d64B8e/falcon-foundry) | [EU](https://falcon.eu-1.crowdstrike.com/documentation/category/c3d64B8e/falcon-foundry)
