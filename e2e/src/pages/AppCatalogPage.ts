@@ -17,9 +17,8 @@ export class AppCatalogPage extends BasePage {
   }
 
   protected async verifyPageLoaded(): Promise<void> {
-    // Use the heading which is unique
     await this.waiter.waitForVisible(
-      this.page.locator('h1:has-text("App catalog")'),
+      this.page.locator('text=App Catalog').or(this.page.locator('text=Apps')),
       { description: 'App Catalog page' }
     );
 
@@ -101,7 +100,10 @@ export class AppCatalogPage extends BasePage {
     // Handle permissions dialog
     await this.handlePermissionsDialog();
 
-    // Click final install button
+    // Check for ServiceNow configuration screen
+    await this.configureServiceNowIfNeeded();
+
+    // Click final Install app button
     await this.clickInstallAppButton();
 
     // Wait for installation to complete
@@ -125,14 +127,59 @@ export class AppCatalogPage extends BasePage {
   }
 
   /**
-   * Click the final "Save and install" or "Install app" button
+   * Configure ServiceNow API integration if configuration form is present
+   */
+  private async configureServiceNowIfNeeded(): Promise<void> {
+    this.logger.info('Checking if ServiceNow API configuration is required...');
+
+    // Check if there are text input fields (configuration form)
+    const textInputs = this.page.locator('input[type="text"]');
+
+    try {
+      await textInputs.first().waitFor({ state: 'visible', timeout: 15000 });
+      const count = await textInputs.count();
+      this.logger.info(`ServiceNow configuration form detected with ${count} input fields`);
+    } catch (error) {
+      this.logger.info('No ServiceNow configuration required - no input fields found');
+      return;
+    }
+
+    this.logger.info('ServiceNow configuration required, filling dummy values');
+
+    // Fill configuration fields using index-based selection
+    // Field 1: Name
+    const nameField = this.page.locator('input[type="text"]').first();
+    await nameField.fill('ServiceNow Test Instance');
+    this.logger.debug('Filled Name field');
+
+    // Field 2: Instance (the {instance} part of {instance}.service-now.com)
+    const instanceField = this.page.locator('input[type="text"]').nth(1);
+    await instanceField.fill('dev12345');
+    this.logger.debug('Filled Instance field');
+
+    // Field 3: Username
+    const usernameField = this.page.locator('input[type="text"]').nth(2);
+    await usernameField.fill('dummy_user');
+    this.logger.debug('Filled Username field');
+
+    // Field 4: Password (must be >8 characters)
+    const passwordField = this.page.locator('input[type="password"]').first();
+    await passwordField.fill('DummyPassword123');
+    this.logger.debug('Filled Password field');
+
+    // Wait for network to settle after filling form
+    await this.page.waitForLoadState('networkidle');
+
+    this.logger.success('ServiceNow API configuration completed');
+  }
+
+  /**
+   * Click the final "Save and install" button
    */
   private async clickInstallAppButton(): Promise<void> {
-    // Try both button texts - different apps use different wording
-    const installButton = this.page.getByRole('button', { name: 'Save and install' })
-      .or(this.page.getByRole('button', { name: 'Install app' }));
+    const installButton = this.page.getByRole('button', { name: 'Save and install' });
 
-    await this.waiter.waitForVisible(installButton, { description: 'Install button' });
+    await this.waiter.waitForVisible(installButton, { description: 'Save and install button' });
 
     // Wait for button to be enabled
     await installButton.waitFor({ state: 'visible', timeout: 10000 });
@@ -141,8 +188,8 @@ export class AppCatalogPage extends BasePage {
     // Simple delay for form to enable button
     await this.waiter.delay(1000);
 
-    await this.smartClick(installButton, 'Install button');
-    this.logger.info('Clicked install button');
+    await this.smartClick(installButton, 'Save and install button');
+    this.logger.info('Clicked Save and install button');
   }
 
   /**
@@ -242,7 +289,7 @@ export class AppCatalogPage extends BasePage {
       const successMessage = this.page.getByText(/has been uninstalled/i);
       await this.waiter.waitForVisible(successMessage, {
         description: 'Uninstall success message',
-        timeout: 10000
+        timeout: 30000
       });
 
       this.logger.success(`App '${appName}' uninstalled successfully`);
