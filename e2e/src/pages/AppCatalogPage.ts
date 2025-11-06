@@ -100,7 +100,7 @@ export class AppCatalogPage extends BasePage {
     // Handle permissions dialog
     await this.handlePermissionsDialog();
 
-    // Check for ServiceNow configuration screen
+    // Check for API configuration screen
     await this.configureApiIntegrationIfNeeded();
 
     // Click final Install app button
@@ -128,14 +128,12 @@ export class AppCatalogPage extends BasePage {
 
   /**
    * Configure API integration if configuration form is present during installation.
-   * 
-   * NOTE: This method currently handles ServiceNow-specific fields but is designed as
-   * a no-op for apps without API integrations. This common pattern across all sample apps
-   * will be extracted to the future @crowdstrike/foundry-e2e-testing framework.
-   * 
-   * Apps with ServiceNow configuration: servicenow-itsm, servicenow-idp
-   * Other apps: Returns early when no configuration fields detected
-   * 
+   *
+   * This method handles apps with configuration forms at install time:
+   * - Apps with fields that have default values: Accepts defaults and continues
+   * - Apps with empty fields: Fills with dummy test values
+   * - Apps with no configuration: Returns early as no-op
+   *
    * @future-framework-extraction Candidate for BasePage or AppCatalogPage in shared framework
    */
   private async configureApiIntegrationIfNeeded(): Promise<void> {
@@ -144,21 +142,31 @@ export class AppCatalogPage extends BasePage {
     // Check if there are text input fields (configuration form)
     const textInputs = this.page.locator('input[type="text"]');
 
+    let count = 0;
     try {
       await textInputs.first().waitFor({ state: 'visible', timeout: 15000 });
-      const count = await textInputs.count();
-      this.logger.info(`ServiceNow configuration form detected with ${count} input fields`);
+      count = await textInputs.count();
+      this.logger.info(`Configuration form detected with ${count} input field(s)`);
     } catch (error) {
-      this.logger.info('No ServiceNow configuration required - no input fields found');
+      this.logger.info('No configuration required - no input fields found');
       return;
     }
 
-    this.logger.info('ServiceNow configuration required, filling dummy values');
+    // Check if first field has a default value
+    const firstField = textInputs.first();
+    const defaultValue = await firstField.inputValue();
 
-    // Fill configuration fields using index-based selection
+    if (defaultValue && defaultValue.trim() !== '') {
+      this.logger.info(`Field has default value "${defaultValue}", accepting defaults and continuing`);
+      return;
+    }
+
+    // No default value, fill configuration fields
+    this.logger.info('Configuration fields are empty, filling dummy values');
+
     // Field 1: Name
     const nameField = this.page.locator('input[type="text"]').first();
-    await nameField.fill('ServiceNow Test Instance');
+    await nameField.fill('Test Config');
     this.logger.debug('Filled Name field');
 
     // Field 2: Instance (the {instance} part of {instance}.service-now.com)
@@ -179,7 +187,7 @@ export class AppCatalogPage extends BasePage {
     // Wait for network to settle after filling form
     await this.page.waitForLoadState('networkidle');
 
-    this.logger.success('ServiceNow API configuration completed');
+    this.logger.success('API configuration completed');
   }
 
   /**
