@@ -231,41 +231,6 @@ export class AppCatalogPage extends BasePage {
   }
 
   /**
-   * Navigate to app via Custom Apps menu
-   */
-  async navigateToAppViaCustomApps(appName: string): Promise<void> {
-    this.logger.step(`Navigate to app '${appName}' via Custom Apps`);
-
-    return RetryHandler.withPlaywrightRetry(
-      async () => {
-        // Navigate to Foundry home
-        await this.navigateToPath('/foundry/home', 'Foundry home page');
-
-        // Open hamburger menu
-        const menuButton = this.page.getByRole('button', { name: 'Menu' });
-        await this.smartClick(menuButton, 'Menu button');
-
-        // Click Custom apps
-        const customAppsButton = this.page.getByRole('button', { name: 'Custom apps' });
-        await this.smartClick(customAppsButton, 'Custom apps button');
-
-        // Find and click the app
-        const appButton = this.page.getByRole('button', { name: appName, exact: false }).first();
-        if (await this.elementExists(appButton, 3000)) {
-          await this.smartClick(appButton, `App '${appName}' button`);
-          await this.waiter.delay(1000);
-
-          this.logger.success(`Navigated to app '${appName}' via Custom Apps`);
-          return;
-        }
-
-        throw new Error(`App '${appName}' not found in Custom Apps menu`);
-      },
-      `Navigate to app via Custom Apps`
-    );
-  }
-
-  /**
    * Uninstall app
    */
   async uninstallApp(appName: string): Promise<void> {
