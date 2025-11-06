@@ -129,65 +129,10 @@ export class AppCatalogPage extends BasePage {
   /**
    * Configure API integration if configuration form is present during installation.
    *
-   * This method handles apps with configuration forms at install time:
-   * - Apps with fields that have default values: Accepts defaults and continues
-   * - Apps with empty fields: Fills with dummy test values
-   * - Apps with no configuration: Returns early as no-op
-   *
-   * @future-framework-extraction Candidate for BasePage or AppCatalogPage in shared framework
+   * This app has no API integration configuration, so this is a no-op.
    */
   private async configureApiIntegrationIfNeeded(): Promise<void> {
-    this.logger.info('Checking for API integration configuration form...');
-
-    // Check if there are text input fields (configuration form)
-    const textInputs = this.page.locator('input[type="text"]');
-
-    let count = 0;
-    try {
-      await textInputs.first().waitFor({ state: 'visible', timeout: 15000 });
-      count = await textInputs.count();
-      this.logger.info(`Configuration form detected with ${count} input field(s)`);
-    } catch (error) {
-      this.logger.info('No configuration required - no input fields found');
-      return;
-    }
-
-    // Check if first field has a default value
-    const firstField = textInputs.first();
-    const defaultValue = await firstField.inputValue();
-
-    if (defaultValue && defaultValue.trim() !== '') {
-      this.logger.info(`Field has default value "${defaultValue}", accepting defaults and continuing`);
-      return;
-    }
-
-    // No default value, fill configuration fields
-    this.logger.info('Configuration fields are empty, filling dummy values');
-
-    // Field 1: Name
-    const nameField = this.page.locator('input[type="text"]').first();
-    await nameField.fill('Test Config');
-    this.logger.debug('Filled Name field');
-
-    // Field 2: Instance (the {instance} part of {instance}.service-now.com)
-    const instanceField = this.page.locator('input[type="text"]').nth(1);
-    await instanceField.fill('dev12345');
-    this.logger.debug('Filled Instance field');
-
-    // Field 3: Username
-    const usernameField = this.page.locator('input[type="text"]').nth(2);
-    await usernameField.fill('dummy_user');
-    this.logger.debug('Filled Username field');
-
-    // Field 4: Password (must be >8 characters)
-    const passwordField = this.page.locator('input[type="password"]').first();
-    await passwordField.fill('DummyPassword123');
-    this.logger.debug('Filled Password field');
-
-    // Wait for network to settle after filling form
-    await this.page.waitForLoadState('networkidle');
-
-    this.logger.success('API configuration completed');
+    // No API integration in this app
   }
 
   /**
