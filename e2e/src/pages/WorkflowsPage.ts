@@ -32,7 +32,7 @@ export class WorkflowsPage extends BasePage {
         await this.navigateToPath('/foundry/home', 'Foundry Home');
 
         // Open hamburger menu
-        const menuButton = this.page.getByRole('button', { name: 'Menu' });
+        const menuButton = this.page.getByTestId('nav-trigger');
         await menuButton.click();
         await this.page.waitForLoadState('networkidle');
 
