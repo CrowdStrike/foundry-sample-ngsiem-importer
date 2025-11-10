@@ -12,7 +12,7 @@ export class WorkflowsPage extends BasePage {
   }
 
   protected getPagePath(): string {
-    return '/fusion-soar/workflows';
+    return '/workflow/fusion';
   }
 
   protected async verifyPageLoaded(): Promise<void> {
