@@ -12,6 +12,8 @@ ignored:
     - .+/node_modules/.+
     - .+/venv$
     - .+/venv/.+
+    - e2e
+    - e2e/.+
 ui:
     homepage: ""
     extensions: []
