@@ -34,8 +34,10 @@ export class AppCatalogPage extends BasePage {
     await this.navigateToPath('/foundry/app-catalog', 'App catalog page');
 
     const filterBox = this.page.getByPlaceholder('Type to filter');
-    await filterBox.fill(appName);
-    await this.page.waitForLoadState('networkidle');
+    if (await filterBox.isVisible().catch(() => false)) {
+      await filterBox.fill(appName);
+      await this.page.waitForLoadState('networkidle');
+    }
 
     const appLink = this.page.getByRole('link', { name: appName, exact: true });
 
