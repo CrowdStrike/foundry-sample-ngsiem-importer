@@ -40,7 +40,6 @@ export class WorkflowsPage extends BasePage {
         const navigation = this.page.locator('nav, [role="navigation"]');
         const fusionSoarButton = navigation.getByRole('button', { name: 'Fusion SOAR', exact: true });
         await fusionSoarButton.click();
-        await this.page.waitForLoadState('networkidle');
 
         // Click Workflows link
         const workflowsLink = this.page.getByRole('link', { name: 'Workflows' });
