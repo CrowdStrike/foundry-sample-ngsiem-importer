@@ -114,11 +114,20 @@ export class WorkflowsPage extends BasePage {
       async () => {
         this.logger.info(`Opening workflow: ${workflowName}`);
 
-        // Look for the workflow link directly in the table
-        const workflowLink = this.page.getByRole('link', { name: new RegExp(workflowName, 'i') }).first();
-        await workflowLink.click();
+        // Wait for the workflow table to be stable (no spinners)
+        await this.page.waitForLoadState('networkidle');
 
-        // Wait for workflow details to load
+        // Look for the workflow link directly in the table and click it
+        const workflowLink = this.page.getByRole('link', { name: new RegExp(workflowName, 'i') }).first();
+        await workflowLink.waitFor({ state: 'visible', timeout: 10000 });
+
+        // Click and wait for navigation to workflow detail page
+        await Promise.all([
+          this.page.waitForURL(/\/workflow\/fusion\/[a-f0-9]+/, { timeout: 15000 }),
+          workflowLink.click()
+        ]);
+
+        // Wait for workflow details page to load
         await this.page.waitForLoadState('networkidle');
 
         this.logger.success(`Opened workflow: ${workflowName}`);
