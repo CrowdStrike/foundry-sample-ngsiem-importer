@@ -16,8 +16,10 @@ updates:
       timezone: "UTC"
     ignore:
       - dependency-name: "actions/checkout"
-        versions: [">=6.0.2"]
+        versions: [">=6.0.3"]
       - dependency-name: "actions/setup-node"
-        versions: [">=6.2.0"]
+        versions: [">=6.3.0"]
       - dependency-name: "actions/setup-python"
-        versions: [">=6.1.0"]
+        versions: [">=6.3.0"]
+      - dependency-name: "actions/upload-artifact"
+        versions: [">=7.0.0"]
