@@ -22,4 +22,4 @@ updates:
       - dependency-name: "actions/setup-python"
         versions: [">=6.3.0"]
       - dependency-name: "actions/upload-artifact"
-        versions: [">=6.0.0"]
+        versions: [">=7.0.0"]
