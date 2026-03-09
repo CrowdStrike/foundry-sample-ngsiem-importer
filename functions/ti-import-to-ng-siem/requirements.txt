@@ -1,5 +1,5 @@
 crowdstrike-foundry-function==1.1.4
 crowdstrike-falconpy
 ipaddress==1.0.23
-numpy==2.4.2
+numpy==2.4.3
 pandas==3.0.1
