@@ -1,4 +1,4 @@
-import { test, expect } from '../src/fixtures';
+import { test } from '../src/fixtures';
 
 test.describe.configure({ mode: 'serial' });
 
@@ -25,15 +25,18 @@ test.describe('NG-SIEM Importer - E2E Tests', () => {
   });
 
   test('should execute TI Import Scheduler workflow', async ({ workflowsPage }) => {
+    // Increase timeout for this test since the workflow execution takes time
+    test.setTimeout(180000);
+
     // Navigate to workflows
     await workflowsPage.navigateToWorkflows();
 
     // Execute the TI Import Scheduler workflow
     await workflowsPage.executeAndVerifyWorkflow('TI Import Scheduler');
 
-    // Wait a bit longer for the workflow to complete processing
-    // The workflow downloads files from external sources and processes them
-    await workflowsPage.page.waitForTimeout(10000);
+    // Verify the workflow execution actually completed successfully
+    // This waits for the execution to reach a terminal state and checks for errors
+    await workflowsPage.verifyWorkflowExecutionCompleted();
   });
 
   test('should verify TI lookup files were created in NG-SIEM', async ({ ngsiemPage }) => {

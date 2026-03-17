@@ -11,6 +11,13 @@ export class WorkflowsPage extends BasePage {
     super(page, 'Workflows');
   }
 
+  /**
+   * Public accessor for the page (needed for test timeouts)
+   */
+  getPage(): Page {
+    return this.page;
+  }
+
   protected getPagePath(): string {
     return '/workflow/fusion';
   }
@@ -260,6 +267,82 @@ export class WorkflowsPage extends BasePage {
         await this.verifyWorkflowExecutionSuccess(workflowName);
       },
       `Execute and verify workflow: ${workflowName}`
+    );
+  }
+
+  /**
+   * Check the actual execution status by viewing the execution details.
+   * Navigates to the execution log, waits for the execution to complete,
+   * expands the execution row, and checks the status.
+   */
+  async verifyWorkflowExecutionCompleted(timeoutMs = 120000): Promise<void> {
+    return this.withTiming(
+      async () => {
+        this.logger.info('Checking workflow execution status in detail view');
+
+        // The "View" link opens in a new tab - capture it
+        const viewLink = this.page.getByRole('link', { name: /^view$/i });
+        await viewLink.waitFor({ state: 'visible', timeout: 10000 });
+
+        const [executionPage] = await Promise.all([
+          this.page.context().waitForEvent('page'),
+          viewLink.click(),
+        ]);
+
+        // Wait for the new tab to load
+        await executionPage.waitForLoadState('networkidle');
+        this.logger.info('Execution page opened in new tab');
+
+        // Wait for "Execution status" to appear (proves execution details loaded)
+        const statusLabel = executionPage.getByText('Execution status');
+        await statusLabel.waitFor({ state: 'visible', timeout: 30000 });
+        this.logger.info('Execution details visible');
+
+        // Poll until execution reaches a terminal state
+        this.logger.info(`Waiting up to ${timeoutMs / 1000}s for execution to complete...`);
+
+        const startTime = Date.now();
+        while (Date.now() - startTime < timeoutMs) {
+          // Re-find status label each iteration (DOM recreated on reload)
+          const currentStatusLabel = executionPage.getByText('Execution status');
+          await currentStatusLabel.waitFor({ state: 'visible', timeout: 15000 });
+          const statusContainer = currentStatusLabel.locator('..');
+          const statusText = await statusContainer.textContent() || '';
+          const currentStatus = statusText.replace('Execution status', '').trim();
+          this.logger.info(`Current status: ${currentStatus}`);
+
+          if (currentStatus.toLowerCase().includes('failed')) {
+            // Capture error details
+            const pageContent = await executionPage.textContent('body') || '';
+            const messageMatch = pageContent.match(/"message":\s*"([^"]+)"/);
+
+            let errorMessage = 'Workflow action failed';
+            if (messageMatch) {
+              errorMessage = messageMatch[1];
+            }
+
+            await executionPage.close();
+            this.logger.error(`Workflow execution failed: ${errorMessage}`);
+            throw new Error(`Workflow execution failed: ${errorMessage}`);
+          }
+
+          if (!currentStatus.toLowerCase().includes('in progress')) {
+            // Terminal state that isn't "Failed"
+            await executionPage.close();
+            this.logger.success(`Workflow execution completed with status: ${currentStatus}`);
+            return;
+          }
+
+          await executionPage.waitForTimeout(5000);
+
+          // Reload to get updated status - the page doesn't auto-refresh
+          await executionPage.reload({ waitUntil: 'networkidle' });
+        }
+
+        await executionPage.close();
+        throw new Error('Workflow execution timed out - still in progress');
+      },
+      'Verify workflow execution completed'
     );
   }
 }

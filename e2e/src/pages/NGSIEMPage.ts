@@ -87,6 +87,10 @@ export class NGSIEMPage extends BasePage {
         await this.page.keyboard.press('Enter');
         await this.page.waitForLoadState('networkidle');
 
+        // Wait for loading overlay to disappear before interacting with results
+        const loader = this.page.getByTestId('falcon-loader');
+        await loader.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => {});
+
         this.logger.success(`Searched for lookup file: ${fileName}`);
       },
       `Search for lookup file: ${fileName}`
@@ -121,7 +125,8 @@ export class NGSIEMPage extends BasePage {
   }
 
   /**
-   * Delete a lookup file by name
+   * Delete a lookup file by name.
+   * The UI uses a kebab "Open menu" button per row that reveals a "Delete file" menuitem.
    */
   async deleteLookupFile(fileName: string): Promise<void> {
     return this.withTiming(
@@ -131,21 +136,21 @@ export class NGSIEMPage extends BasePage {
         // Search for the file
         await this.searchLookupFile(fileName);
 
-        // Find the row containing the file
-        const fileRow = this.page.locator('tr', { has: this.page.getByText(new RegExp(fileName, 'i')) });
+        // Find the row containing the file using ARIA role (table uses div role="row", not <tr>)
+        const fileRow = this.page.getByRole('row').filter({ hasText: new RegExp(fileName, 'i') }).first();
+        await fileRow.waitFor({ state: 'visible', timeout: 5000 });
 
-        // Look for delete button/icon in the row
-        const deleteButton = fileRow.getByRole('button', { name: /delete|remove/i })
-          .or(fileRow.locator('[aria-label*="Delete"]'))
-          .or(fileRow.locator('[aria-label*="Remove"]'));
+        // Click the "Open menu" kebab button in the row
+        const menuButton = fileRow.getByRole('button', { name: /open menu/i });
+        await menuButton.click();
 
-        await deleteButton.click();
+        // Click "Delete file" from the dropdown menu
+        const deleteMenuItem = this.page.getByRole('menuitem', { name: /delete file/i });
+        await deleteMenuItem.click();
 
-        // Confirm deletion in modal if present
-        const confirmButton = this.page.getByRole('button', { name: /^delete$|^confirm$|^yes$/i });
-        if (await confirmButton.isVisible({ timeout: 2000 })) {
-          await confirmButton.click();
-        }
+        // Confirm deletion in the modal dialog
+        const confirmButton = this.page.getByRole('dialog').getByRole('button', { name: /delete file/i });
+        await confirmButton.click();
 
         await this.page.waitForLoadState('networkidle');
         this.logger.success(`Deleted lookup file: ${fileName}`);
@@ -155,7 +160,9 @@ export class NGSIEMPage extends BasePage {
   }
 
   /**
-   * Delete multiple lookup files (cleanup before tests)
+   * Delete multiple lookup files (cleanup before tests).
+   * Files that don't exist are reported as notFound.
+   * Files that exist but fail to delete will throw an error.
    */
   async deleteLookupFiles(fileNames: string[]): Promise<{ deleted: string[], notFound: string[] }> {
     return this.withTiming(
@@ -166,20 +173,18 @@ export class NGSIEMPage extends BasePage {
         const notFound: string[] = [];
 
         for (const fileName of fileNames) {
-          try {
-            // Check if file exists first
-            await this.searchLookupFile(fileName);
-            const fileExists = await this.page.getByText(new RegExp(fileName, 'i')).first().isVisible({ timeout: 2000 });
+          // Search and wait for results to stabilize
+          await this.searchLookupFile(fileName);
 
-            if (fileExists) {
-              await this.deleteLookupFile(fileName);
-              deleted.push(fileName);
-            } else {
-              this.logger.info(`Lookup file not found (already deleted): ${fileName}`);
-              notFound.push(fileName);
-            }
-          } catch (error) {
-            this.logger.info(`Lookup file not found: ${fileName}`);
+          // Check if any results were returned by looking for the file link in the grid
+          const fileLink = this.page.getByRole('row').filter({ hasText: new RegExp(fileName, 'i') }).first();
+          const fileExists = await fileLink.isVisible({ timeout: 3000 }).catch(() => false);
+
+          if (fileExists) {
+            await this.deleteLookupFile(fileName);
+            deleted.push(fileName);
+          } else {
+            this.logger.info(`Lookup file not found (already deleted): ${fileName}`);
             notFound.push(fileName);
           }
         }
@@ -214,7 +219,6 @@ export class NGSIEMPage extends BasePage {
         }
 
         const allFound = results.every(r => r.exists);
-        const foundCount = results.filter(r => r.exists).length;
 
         if (allFound) {
           this.logger.success(`All ${expectedFiles.length} TI lookup files verified`);
