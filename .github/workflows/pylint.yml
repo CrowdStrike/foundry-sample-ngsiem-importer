@@ -1,0 +1,54 @@
+name: Pylint
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: '3.13'
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install global dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pylint
+      - name: Lint all functions
+        run: |
+          # Find all subdirectories in functions/ that contain Python files
+          for func_dir in functions/*/; do
+            if [ -d "$func_dir" ] && find "$func_dir" -name "*.py" -type f | grep -q .; then
+              func_name=$(basename "$func_dir")
+              echo "::group::Processing $func_name"
+
+              # Install function-specific dependencies if requirements.txt exists
+              if [ -f "$func_dir/requirements.txt" ]; then
+                echo "Installing dependencies for $func_name..."
+                pip install -r "$func_dir/requirements.txt"
+              else
+                echo "No requirements.txt found for $func_name, skipping dependency installation"
+              fi
+
+              # Run pylint on the function directory
+              echo "Running pylint on $func_name..."
+              pylint "$func_dir" --max-line-length=127 --disable=R0801 --py-version=${{ env.PYTHON_VERSION }} || {
+                echo "::error::Pylint failed for $func_name"
+                exit 1
+              }
+
+              echo "::endgroup::"
+            fi
+          done
