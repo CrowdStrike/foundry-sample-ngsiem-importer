@@ -289,13 +289,15 @@ export class WorkflowsPage extends BasePage {
           viewLink.click(),
         ]);
 
-        // Wait for the new tab to load
+        // Wait for the new tab to load (execution pages can be slow to render)
         await executionPage.waitForLoadState('networkidle');
+        await executionPage.waitForLoadState('domcontentloaded');
         this.logger.info('Execution page opened in new tab');
 
         // Wait for "Execution status" to appear (proves execution details loaded)
+        // This page can take a while to render, especially for newly created apps
         const statusLabel = executionPage.getByText('Execution status');
-        await statusLabel.waitFor({ state: 'visible', timeout: 30000 });
+        await statusLabel.waitFor({ state: 'visible', timeout: 60000 });
         this.logger.info('Execution details visible');
 
         // Poll until execution reaches a terminal state

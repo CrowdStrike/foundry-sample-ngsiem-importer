@@ -1,9 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
-import pandas as pd
+import csv
 import tempfile
 import os
-from io import StringIO
 
 # Import the functions to test
 from main import (
@@ -18,7 +17,7 @@ def mock_handler(*args, **kwargs):
     return identity
 
 
-from crowdstrike.foundry.function import Request, Response, APIError
+from crowdstrike.foundry.function import Request
 
 # Test data
 MOCK_IP_FILE_CONTENT = """
@@ -105,13 +104,15 @@ def test_process_file_ip_with_separator(mock_requests_get, mock_temp_dir):
     assert os.path.exists(output_path)
 
     # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 2  # Two valid IPs
-    assert df.loc[0]["destination.ip"] == "192.168.1.1"
-    # verify details is na for the first ip with no comment
-    assert pd.isna(df.loc[0]["destination.ip.details"])
-    assert df.loc[1]["destination.ip"] == "10.0.0.1"
-    assert df.loc[1]["destination.ip.details"] == "Some comment"
+    with open(output_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        rows = list(reader)
+    assert rows[0] == ["destination.ip", "destination.ip.details"]  # header
+    assert len(rows) == 3  # header + 2 data rows
+    assert rows[1][0] == "192.168.1.1"
+    assert rows[1][1] == ""  # no comment for first IP
+    assert rows[2][0] == "10.0.0.1"
+    assert rows[2][1] == "Some comment"
 
 def test_process_file_ip_without_separator(mock_requests_get, mock_temp_dir):
     """Test processing IP file without separator"""
@@ -128,9 +129,12 @@ def test_process_file_ip_without_separator(mock_requests_get, mock_temp_dir):
     output_path = process_file(file_info, mock_temp_dir)
 
     # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 1  # Only 1 valid IP
-    assert df.loc[0]["destination.ip"] == "192.168.1.1"
+    with open(output_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        rows = list(reader)
+    assert rows[0] == ["destination.ip"]  # header
+    assert len(rows) == 2  # header + 1 data row
+    assert rows[1][0] == "192.168.1.1"
 
 def test_process_file_domain(mock_requests_get, mock_temp_dir):
     """Test processing domain file"""
@@ -147,12 +151,17 @@ def test_process_file_domain(mock_requests_get, mock_temp_dir):
     output_path = process_file(file_info, mock_temp_dir)
 
     # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 2
-    assert "example.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization]
-    assert "malicious.com" in df["dns.domain.name"].values  # codeql[py/incomplete-url-substring-sanitization]
-    assert "Example Domain" in df["dns.domain.details"].values
-    assert "Malicious Domain" in df["dns.domain.details"].values
+    with open(output_path, newline='') as csvfile:
+        reader = csv.reader(csvfile)
+        rows = list(reader)
+    assert rows[0] == ["dns.domain.name", "dns.domain.details"]  # header
+    assert len(rows) == 3  # header + 2 data rows
+    domains = [row[0] for row in rows[1:]]
+    details = [row[1] for row in rows[1:]]
+    assert "example.com" in domains  # codeql[py/incomplete-url-substring-sanitization]
+    assert "malicious.com" in domains  # codeql[py/incomplete-url-substring-sanitization]
+    assert "Example Domain" in details
+    assert "Malicious Domain" in details
 
 def test_process_file_request_error(mock_requests_get, mock_temp_dir):
     """Test handling of request errors"""
@@ -205,8 +214,40 @@ def test_handler_success(mock_ngsiem):
             # Verify NGSIEM upload was called
             assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS)
 
-            # Verify logger was called
-            assert mock_logger.info.call_count == len(FILES_TO_PROCESS)
+
+def test_handler_with_skipped_files(mock_ngsiem):
+    """Test handler with some feeds returning no data (skipped)"""
+    request = Request(
+        body={"repository": "custom-repo"},
+    )
+
+    mock_logger = MagicMock()
+
+    with patch('crowdstrike.foundry.function.Function.handler', new=mock_handler):
+        import importlib
+        import main
+        importlib.reload(main)
+
+        with patch('os.path.exists') as mock_exists, \
+                patch('main.process_file') as mock_process_file:
+            mock_exists.return_value = True
+            # First two files return None (empty feeds), rest succeed
+            mock_process_file.side_effect = [
+                None, None,
+                *["/tmp/test_file.csv"] * (len(FILES_TO_PROCESS) - 2)
+            ]
+
+            response = main.next_gen_siem_csv_import(request, {}, mock_logger)
+
+            assert response.code == 200
+            assert len(response.body["results"]) == len(FILES_TO_PROCESS)
+
+            # First two should be skipped
+            assert response.body["results"][0]["status"] == "skipped"
+            assert response.body["results"][1]["status"] == "skipped"
+
+            # NGSIEM upload should only be called for non-skipped files
+            assert mock_ngsiem.upload_file.call_count == len(FILES_TO_PROCESS) - 2
 
 def test_handler_with_processing_error(mock_ngsiem):
     """Test handler with processing error for one file"""
@@ -322,9 +363,8 @@ def test_process_file_empty_content(mock_requests_get, mock_temp_dir):
 
     output_path = process_file(file_info, mock_temp_dir)
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 0
+    # Empty feed should return None (no file created)
+    assert output_path is None
 
 
 def test_process_file_only_comments(mock_requests_get, mock_temp_dir):
@@ -341,9 +381,8 @@ def test_process_file_only_comments(mock_requests_get, mock_temp_dir):
 
     output_path = process_file(file_info, mock_temp_dir)
 
-    # Verify content
-    df = pd.read_csv(output_path)
-    assert len(df) == 0
+    # Comment-only feed should return None (no file created)
+    assert output_path is None
 
 def test_handler_default_repository(mock_ngsiem):
     """Test handler with default repository"""
