@@ -156,12 +156,10 @@ def test_process_file_domain(mock_requests_get, mock_temp_dir):
         rows = list(reader)
     assert rows[0] == ["dns.domain.name", "dns.domain.details"]  # header
     assert len(rows) == 3  # header + 2 data rows
-    domains = [row[0] for row in rows[1:]]
-    details = [row[1] for row in rows[1:]]
-    assert "example.com" in domains  # codeql[py/incomplete-url-substring-sanitization]
-    assert "malicious.com" in domains  # codeql[py/incomplete-url-substring-sanitization]
-    assert "Example Domain" in details
-    assert "Malicious Domain" in details
+    assert rows[1][0] == "example.com"
+    assert rows[1][1] == "Example Domain"
+    assert rows[2][0] == "malicious.com"
+    assert rows[2][1] == "Malicious Domain"
 
 def test_process_file_request_error(mock_requests_get, mock_temp_dir):
     """Test handling of request errors"""
