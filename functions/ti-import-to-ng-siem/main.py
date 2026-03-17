@@ -1,7 +1,6 @@
 from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import NGSIEM
 import requests
-import pandas as pd
 import tempfile
 import os
 import ipaddress
@@ -91,13 +90,17 @@ def process_file(file_info, temp_dir):
                     else:
                         output_rows.append([line.strip()])
 
-        # Create DataFrame
-        df = pd.DataFrame(output_rows, columns=file_info["headers"])
+        # Skip upload if feed returned no data rows
+        if not output_rows:
+            return None
 
-        # Save to CSV
+        # Write to CSV
         output_filename = f"ti_{file_info['name']}.csv"
         output_path = os.path.join(temp_dir, output_filename)
-        df.to_csv(output_path, index=False, quoting=csv.QUOTE_MINIMAL)
+        with open(output_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(file_info["headers"])
+            writer.writerows(output_rows)
 
         return output_path
     except Exception as e:
@@ -120,6 +123,14 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
             for file_info in FILES_TO_PROCESS:
                 try:
                     output_path = process_file(file_info, temp_dir)
+                    if output_path is None:
+                        logger.info(f"No data rows for {file_info['name']}, skipping upload")
+                        results.append({
+                            "file": file_info["name"],
+                            "status": "skipped",
+                            "message": "Feed returned no data rows"
+                        })
+                        continue
                     if not os.path.exists(output_path):
                         raise FileNotFoundError("File does not exist")
 
