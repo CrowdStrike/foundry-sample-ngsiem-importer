@@ -26,29 +26,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install --upgrade pylint
-      - name: Lint all functions
+      - name: Install function dependencies
         run: |
-          # Find all subdirectories in functions/ that contain Python files
           for func_dir in functions/*/; do
-            if [ -d "$func_dir" ] && find "$func_dir" -name "*.py" -type f | grep -q .; then
-              func_name=$(basename "$func_dir")
-              echo "::group::Processing $func_name"
-
-              # Install function-specific dependencies if requirements.txt exists
-              if [ -f "$func_dir/requirements.txt" ]; then
-                echo "Installing dependencies for $func_name..."
-                pip install -r "$func_dir/requirements.txt"
-              else
-                echo "No requirements.txt found for $func_name, skipping dependency installation"
-              fi
-
-              # Run pylint on the function directory
-              echo "Running pylint on $func_name..."
-              pylint "$func_dir" --max-line-length=127 --disable=R0801 --py-version=${{ env.PYTHON_VERSION }} || {
-                echo "::error::Pylint failed for $func_name"
-                exit 1
-              }
-
-              echo "::endgroup::"
+            if [ -f "$func_dir/requirements.txt" ]; then
+              pip install -r "$func_dir/requirements.txt"
             fi
           done
+      - name: Lint all functions
+        run: |
+          pylint --recursive=y functions/ --max-line-length=127 --disable=R0801 --py-version=${{ env.PYTHON_VERSION }}
