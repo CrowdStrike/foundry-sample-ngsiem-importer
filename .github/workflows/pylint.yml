@@ -1,0 +1,38 @@
+name: Pylint
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+permissions:
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: '3.13'
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8  # v6.0.1
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install global dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --upgrade pylint
+      - name: Install function dependencies
+        run: |
+          for func_dir in functions/*/; do
+            if [ -f "$func_dir/requirements.txt" ]; then
+              pip install -r "$func_dir/requirements.txt"
+            fi
+          done
+      - name: Lint all functions
+        run: |
+          pylint --recursive=y functions/ --max-line-length=127 --disable=R0801 --py-version=${{ env.PYTHON_VERSION }}

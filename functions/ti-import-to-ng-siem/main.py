@@ -1,13 +1,16 @@
+"""Threat intelligence feed importer for CrowdStrike Falcon Next-Gen SIEM."""
+
+import csv
+import ipaddress
+import os
+import tempfile
+from typing import Dict
+
 from crowdstrike.foundry.function import APIError, Function, Request, Response
 from falconpy import NGSIEM
 import requests
-import tempfile
-import os
-import ipaddress
-import csv
-from typing import Dict
 
-func = Function.instance()
+FUNC = Function.instance()
 
 # Define the files to process
 FILES_TO_PROCESS = [
@@ -49,82 +52,95 @@ FILES_TO_PROCESS = [
     }
 ]
 
+
 def is_valid_ipv4(ip_string):
+    """Check whether the given string is a valid IPv4 address."""
     try:
         ipaddress.IPv4Address(ip_string)
         return True
-    except:
+    except ValueError:
         return False
 
+
+def _process_lines_with_separator(lines, file_info):
+    """Parse lines that use a separator to split value and description."""
+    rows = []
+    separator = file_info["separator"]
+    is_ip = file_info["name"].startswith("ip-")
+    for line in lines:
+        if not line or line.startswith('#'):
+            continue
+        if is_ip and not is_valid_ipv4(line.split(separator)[0].strip()):
+            continue
+        parts = line.split(separator)
+        if len(parts) == 2:
+            rows.append([parts[0].strip(), parts[1].strip()])
+        else:
+            rows.append([parts[0].strip(), ""])
+    return rows
+
+
+def _process_lines_single_column(lines, file_info):
+    """Parse lines that contain a single value per row."""
+    rows = []
+    is_ip = file_info["name"].startswith("ip-")
+    for line in lines:
+        if not line or line.startswith('#'):
+            continue
+        if is_ip:
+            if is_valid_ipv4(line.strip()):
+                rows.append([line.strip()])
+        else:
+            rows.append([line.strip()])
+    return rows
+
+
 def process_file(file_info, temp_dir):
+    """Download a TI feed, parse it into CSV rows, and write to a temp file."""
     try:
-        # Download file
-        response = requests.get(file_info["url"])
+        response = requests.get(file_info["url"], timeout=60)
         response.raise_for_status()
 
-        # Read content
         content = response.text.strip()
         lines = content.splitlines()
 
-        # Process based on file type
-        output_rows = []
-
         if file_info["separator"]:
-            # For files with separators
-            for line in lines:
-                if line and not line.startswith('#'):
-                    if file_info["name"].startswith("ip-") and not is_valid_ipv4(line.split(file_info["separator"])[0].strip()):
-                        continue
-                    parts = line.split(file_info["separator"])
-                    if len(parts) == 2:
-                        output_rows.append([parts[0].strip(), parts[1].strip()])
-                    else:
-                        output_rows.append([parts[0].strip(), ""])
+            output_rows = _process_lines_with_separator(lines, file_info)
         else:
-            # For single column files
-            for line in lines:
-                if line and not line.startswith('#'):
-                    if file_info["name"].startswith("ip-"):
-                        if is_valid_ipv4(line.strip()):
-                            output_rows.append([line.strip()])
-                    else:
-                        output_rows.append([line.strip()])
+            output_rows = _process_lines_single_column(lines, file_info)
 
-        # Skip upload if feed returned no data rows
         if not output_rows:
             return None
 
-        # Write to CSV
         output_filename = f"ti_{file_info['name']}.csv"
         output_path = os.path.join(temp_dir, output_filename)
-        with open(output_path, 'w', newline='') as csvfile:
+        with open(output_path, 'w', newline='', encoding='utf-8') as csvfile:
             writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
             writer.writerow(file_info["headers"])
             writer.writerows(output_rows)
 
         return output_path
-    except Exception as e:
-        raise Exception(f"Error processing {file_info['name']}: {str(e)}")
+    except (requests.RequestException, OSError, ValueError) as e:
+        raise RuntimeError(
+            f"Error processing {file_info['name']}: {e}"
+        ) from e
 
-@func.handler(method='POST', path='/ti-import-bulk')
-def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None, logger) -> Response:
+
+@FUNC.handler(method='POST', path='/ti-import-bulk')
+def next_gen_siem_csv_import(request: Request, _config: Dict[str, object] | None, logger) -> Response:
+    """Handle bulk TI feed import and upload to Falcon Next-Gen SIEM."""
     try:
-        # Get parameters
         repository = request.body.get('repository', 'search-all').strip()
-
-        # Initialize NGSIEM client
         ngsiem = NGSIEM()
 
-        # Create temporary directory
         with tempfile.TemporaryDirectory() as temp_dir:
             results = []
 
-            # Process each file
             for file_info in FILES_TO_PROCESS:
                 try:
                     output_path = process_file(file_info, temp_dir)
                     if output_path is None:
-                        logger.info(f"No data rows for {file_info['name']}, skipping upload")
+                        logger.info("No data rows for %s, skipping upload", file_info['name'])
                         results.append({
                             "file": file_info["name"],
                             "status": "skipped",
@@ -135,9 +151,7 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
                         raise FileNotFoundError("File does not exist")
 
                     response = ngsiem.upload_file(lookup_file=output_path, repository=repository)
-
-                    # Log the raw response for troubleshooting
-                    logger.info(f"API response: {response}")
+                    logger.info("API response: %s", response)
 
                     if response["status_code"] >= 400:
                         error_messages = response.get("body", {}).get("errors", [])
@@ -151,9 +165,9 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
                     results.append({
                         "file": output_path,
                         "status": "success",
-                        "message": f"File processed and uploaded successfully"
+                        "message": "File processed and uploaded successfully"
                     })
-                except Exception as e:
+                except (RuntimeError, OSError, requests.RequestException, KeyError) as e:
                     results.append({
                         "file": file_info["name"],
                         "status": "error",
@@ -165,11 +179,12 @@ def next_gen_siem_csv_import(request: Request, config: Dict[str, object] | None,
             code=200
         )
 
-    except Exception as e:
+    except (AttributeError, TypeError, ValueError) as e:
         return Response(
             errors=[APIError(code=500, message=str(e))],
             code=500
         )
 
+
 if __name__ == '__main__':
-    func.run()
+    FUNC.run()
