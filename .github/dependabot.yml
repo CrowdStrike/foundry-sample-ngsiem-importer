@@ -23,3 +23,7 @@ updates:
         versions: [">=6.3.0"]
       - dependency-name: "actions/upload-artifact"
         versions: [">=7.0.0"]
+  - package-ecosystem: "pre-commit"
+    directory: "/"
+    schedule:
+      interval: weekly
