@@ -7,12 +7,14 @@ on:
       - '.github/workflows/pylint.yml'
       - '.pylintrc'
       - 'functions/**/requirements.txt'
+      - '.github/requirements-dev.txt'
   pull_request:
     paths:
       - '**.py'
       - '.github/workflows/pylint.yml'
       - '.pylintrc'
       - 'functions/**/requirements.txt'
+      - '.github/requirements-dev.txt'
 
 permissions:
   contents: read
@@ -31,7 +33,7 @@ jobs:
       - name: Install global dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install --upgrade pylint
+          python -m pip install -r .github/requirements-dev.txt
       - name: Install function dependencies
         run: |
           for func_dir in functions/*/; do
