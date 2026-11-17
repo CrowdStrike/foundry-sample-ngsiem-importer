@@ -47,7 +47,7 @@ jobs:
           python-version: '3.14'
           cache: 'pip'
       - name: Install Python dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r ../../.github/requirements-dev.txt
         working-directory: functions/ti-import-to-ng-siem
       - name: Run unit tests
         run: pytest

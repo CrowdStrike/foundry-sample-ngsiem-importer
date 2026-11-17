@@ -1,7 +1,9 @@
 version: 2
 updates:
   - package-ecosystem: pip
-    directory: "/functions/ti-import-to-ng-siem/"
+    directories:
+      - "/functions/ti-import-to-ng-siem/"
+      - "/.github"
     schedule:
       interval: "weekly"
       day: "monday"
